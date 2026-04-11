@@ -1,0 +1,13 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Masheuri Group",
+      "runtimeExecutable": "/usr/local/bin/node",
+      "runtimeArgs": ["/usr/local/lib/node_modules/npm/bin/npm-cli.js", "run", "dev"],
+      "env": { "PATH": "/usr/local/bin:/usr/bin:/bin" },
+      "port": 3000,
+      "autoPort": true
+    }
+  ]
+}
