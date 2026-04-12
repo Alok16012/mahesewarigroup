@@ -18,7 +18,7 @@ import {
 const navItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/properties", icon: Building2, label: "Properties" },
-  { href: "/brokers", icon: Users, label: "Broker Network" },
+  { href: "/associates", icon: Users, label: "Associate Network" },
   { href: "/sales", icon: TrendingUp, label: "Sales" },
   { href: "/leads", icon: Target, label: "Lead Management" },
   { href: "/commissions", icon: Wallet, label: "Commissions" },

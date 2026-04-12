@@ -29,7 +29,7 @@ const pieData = [
   { name: "Sold", value: 212, color: "#6366f1" },
 ];
 
-const topBrokers = [
+const topAssociates = [
   { name: "Rahul Sharma", sales: 24, commission: 960000, trend: "+18%" },
   { name: "Priya Mehta", sales: 18, commission: 720000, trend: "+12%" },
   { name: "Amit Kumar", sales: 12, commission: 480000, trend: "+8%" },
@@ -37,31 +37,53 @@ const topBrokers = [
 ];
 
 const recentSales = [
-  { property: "Royal Meadows - Plot A-204", broker: "Rahul Sharma", amount: 8500000, status: "approved", date: "Apr 8" },
-  { property: "Silver Oak - Plot C-88", broker: "Priya Mehta", amount: 12000000, status: "pending", date: "Apr 6" },
-  { property: "Green Valley - Villa B-12", broker: "Amit Kumar", amount: 22000000, status: "approved", date: "Apr 2" },
-  { property: "Lotus Park - Plot E-19", broker: "Vikram Patel", amount: 7200000, status: "approved", date: "Mar 22" },
+  { property: "Royal Meadows - Plot A-204", associate: "Rahul Sharma", amount: 8500000, status: "approved", date: "Apr 8" },
+  { property: "Silver Oak - Plot C-88", associate: "Priya Mehta", amount: 12000000, status: "pending", date: "Apr 6" },
+  { property: "Green Valley - Villa B-12", associate: "Amit Kumar", amount: 22000000, status: "approved", date: "Apr 2" },
+  { property: "Lotus Park - Plot E-19", associate: "Vikram Patel", amount: 7200000, status: "approved", date: "Mar 22" },
 ];
 
 const priorityTasks = [
   { title: "Approve 2 pending sales", due: "Today", done: "0/2", icon: CheckCircle2, color: "#6366f1" },
   { title: "Process commission payouts", due: "Apr 11", done: "3/8 paid", icon: Wallet, color: "#14b8a6" },
-  { title: "Review new broker registrations", due: "Apr 12", done: "2/5 reviewed", icon: Users, color: "#f59e0b" },
+  { title: "Review new associate registrations", due: "Apr 12", done: "2/5 reviewed", icon: Users, color: "#f59e0b" },
   { title: "Follow up on stale leads", due: "Apr 13", done: "12/28 contacted", icon: Target, color: "#ec4899" },
 ];
 
 const formatINR = (v: number) =>
   v >= 10000000 ? `₹${(v / 10000000).toFixed(1)}Cr` : `₹${(v / 100000).toFixed(0)}L`;
 
-const statCards = [
-  { title: "Total Brokers", value: "1,284", change: "+12%", up: true, sub: "48 new this month", icon: Users, color: "#6366f1", bg: "#ede9fe" },
-  { title: "Properties Listed", value: "617", change: "+8%", up: true, sub: "320 available now", icon: Building2, color: "#14b8a6", bg: "#ccfbf1" },
-  { title: "Sales This Month", value: "₹4.8Cr", change: "+23%", up: true, sub: "35 transactions", icon: TrendingUp, color: "#22c55e", bg: "#dcfce7" },
-  { title: "Commission Pool", value: "₹28.8L", change: "-3%", up: false, sub: "₹12L pending", icon: Wallet, color: "#f59e0b", bg: "#fef3c7" },
-  { title: "Active Leads", value: "342", change: "+17%", up: true, sub: "28 converted this week", icon: Target, color: "#ec4899", bg: "#fce7f3" },
-];
+import { useCrmData } from "@/hooks/use-crm-data";
 
 export default function DashboardPage() {
+  const { leads, loading } = useCrmData();
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#6366f1]"></div>
+      </div>
+    );
+  }
+
+  // Aggregate stats from leads
+  const totalLeads = leads.length;
+  const convertedLeads = leads.filter(l => l.status === "converted").length;
+  const inProgressLeads = leads.filter(l => ["contacted", "site_visit", "negotiation"].includes(l.status)).length;
+  const newLeadsThisMonth = leads.filter(l => l.status === "new").length; // Simplified for now
+
+  // Format INR helper
+  const formatINR = (v: number) =>
+    v >= 10000000 ? `₹${(v / 10000000).toFixed(1)}Cr` : `₹${(v / 100000).toFixed(0)}L`;
+
+  const statCards = [
+    { title: "Total Brokers", value: "1,284", change: "+12%", up: true, sub: "48 new this month", icon: Users, color: "#6366f1", bg: "#ede9fe" },
+    { title: "Properties Listed", value: "617", change: "+8%", up: true, sub: "320 available now", icon: Building2, color: "#14b8a6", bg: "#ccfbf1" },
+    { title: "Sales This Month", value: "₹4.8Cr", change: "+23%", up: true, sub: "35 transactions", icon: TrendingUp, color: "#22c55e", bg: "#dcfce7" },
+    { title: "Total Leads", value: totalLeads.toString(), change: "+17%", up: true, sub: `${newLeadsThisMonth} new leads`, icon: Target, color: "#ec4899", bg: "#fce7f3" },
+    { title: "Active Contacts", value: inProgressLeads.toString(), change: "+5%", up: true, sub: "In pipeline", icon: Clock, color: "#6366f1", bg: "#eef2ff" },
+  ];
+
   return (
     <div className="space-y-5 animate-fade-in">
       {/* Header */}
@@ -207,25 +229,25 @@ export default function DashboardPage() {
           </div>
         </Card>
 
-        {/* Top Brokers */}
+        {/* Top Associates */}
         <Card className="p-5 bg-white border-0 shadow-sm rounded-2xl">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-[#1e1b4b]">Top Brokers</h3>
+            <h3 className="font-bold text-[#1e1b4b]">Top Associates</h3>
             <Badge className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: "#ede9fe", color: "#6366f1" }}>This Month</Badge>
           </div>
           <div className="space-y-3">
-            {topBrokers.map((broker, i) => (
+            {topAssociates.map((associate, i) => (
               <div key={i} className="flex items-center gap-3">
                 <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${i === 0 ? "bg-amber-100 text-amber-600" : "bg-[#ede9fe] text-[#6366f1]"}`}>
                   {i === 0 ? <Star className="w-3.5 h-3.5" /> : i + 1}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-[#1e1b4b] truncate">{broker.name}</p>
-                  <p className="text-xs text-gray-400">{formatINR(broker.commission)} earned</p>
+                  <p className="text-sm font-semibold text-[#1e1b4b] truncate">{associate.name}</p>
+                  <p className="text-xs text-gray-400">{formatINR(associate.commission)} earned</p>
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <p className="text-xs font-bold text-[#6366f1]">{broker.sales} sales</p>
-                  <p className="text-[10px] text-green-500">{broker.trend}</p>
+                  <p className="text-xs font-bold text-[#6366f1]">{associate.sales} sales</p>
+                  <p className="text-[10px] text-green-500">{associate.trend}</p>
                 </div>
               </div>
             ))}

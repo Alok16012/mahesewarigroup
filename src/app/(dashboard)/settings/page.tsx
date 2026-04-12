@@ -276,12 +276,12 @@ export default function SettingsPage() {
 
                 <div className="space-y-4 max-w-lg">
                   {[
-                    { label: "New Broker Registration", desc: "Notify when a new broker joins the platform", email: true, sms: false },
-                    { label: "Sale Submitted for Approval", desc: "Notify when a broker records a new sale", email: true, sms: true },
-                    { label: "Sale Approved / Rejected", desc: "Notify the broker when their sale is actioned", email: true, sms: true },
-                    { label: "Commission Payout Processed", desc: "Notify broker when commission is marked as paid", email: true, sms: false },
-                    { label: "New Lead Assigned", desc: "Notify broker when a lead is assigned to them", email: true, sms: true },
-                    { label: "Lead Follow-up Reminder", desc: "Remind broker to follow up on stale leads", email: false, sms: false },
+                    { label: "New Associate Registration", desc: "Notify when a new associate joins the platform", email: true, sms: false },
+                    { label: "Sale Submitted for Approval", desc: "Notify when an associate records a new sale", email: true, sms: true },
+                    { label: "Sale Approved / Rejected", desc: "Notify the associate when their sale is actioned", email: true, sms: true },
+                    { label: "Commission Payout Processed", desc: "Notify associate when commission is marked as paid", email: true, sms: false },
+                    { label: "New Lead Assigned", desc: "Notify associate when a lead is assigned to them", email: true, sms: true },
+                    { label: "Lead Follow-up Reminder", desc: "Remind associate to follow up on stale leads", email: false, sms: false },
                   ].map((item) => (
                     <div key={item.label} className="flex items-center justify-between p-4 rounded-xl border border-border bg-white">
                       <div className="flex-1 min-w-0 mr-4">

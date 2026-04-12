@@ -21,46 +21,46 @@ import {
 
 const sales = [
   {
-    id: "SL-2024-091", property: "Royal Meadows - Plot A-204", broker: "Rahul Sharma",
+    id: "SL-2024-091", property: "Royal Meadows - Plot A-204", associate: "Rahul Sharma",
     buyerName: "Suresh Gupta", buyerPhone: "+91 98001 23456",
     amount: 8500000, date: "2024-04-08", status: "approved",
     commissions: [
-      { broker: "Rahul Sharma", role: "Seller (L0)", pct: 4, amount: 340000, status: "pending" },
-      { broker: "Admin", role: "Upline (L1)", pct: 1.5, amount: 127500, status: "pending" },
+      { associate: "Rahul Sharma", role: "Seller (L0)", pct: 4, amount: 340000, status: "pending" },
+      { associate: "Admin", role: "Upline (L1)", pct: 1.5, amount: 127500, status: "pending" },
     ],
   },
   {
-    id: "SL-2024-090", property: "Silver Oak - Plot C-88", broker: "Priya Mehta",
+    id: "SL-2024-090", property: "Silver Oak - Plot C-88", associate: "Priya Mehta",
     buyerName: "Ritu Agarwal", buyerPhone: "+91 97002 34567",
     amount: 12000000, date: "2024-04-06", status: "pending",
     commissions: [
-      { broker: "Priya Mehta", role: "Seller (L0)", pct: 4, amount: 480000, status: "pending" },
-      { broker: "Admin", role: "Upline (L1)", pct: 1.5, amount: 180000, status: "pending" },
+      { associate: "Priya Mehta", role: "Seller (L0)", pct: 4, amount: 480000, status: "pending" },
+      { associate: "Admin", role: "Upline (L1)", pct: 1.5, amount: 180000, status: "pending" },
     ],
   },
   {
-    id: "SL-2024-089", property: "Green Valley - Villa B-12", broker: "Amit Kumar",
+    id: "SL-2024-089", property: "Green Valley - Villa B-12", associate: "Amit Kumar",
     buyerName: "Manoj Tiwari", buyerPhone: "+91 96003 45678",
     amount: 22000000, date: "2024-04-02", status: "approved",
     commissions: [
-      { broker: "Amit Kumar", role: "Seller (L0)", pct: 4, amount: 880000, status: "paid" },
-      { broker: "Rahul Sharma", role: "Upline (L1)", pct: 1.5, amount: 330000, status: "paid" },
-      { broker: "Admin", role: "Upline (L2)", pct: 0.5, amount: 110000, status: "paid" },
+      { associate: "Amit Kumar", role: "Seller (L0)", pct: 4, amount: 880000, status: "paid" },
+      { associate: "Rahul Sharma", role: "Upline (L1)", pct: 1.5, amount: 330000, status: "paid" },
+      { associate: "Admin", role: "Upline (L2)", pct: 0.5, amount: 110000, status: "paid" },
     ],
   },
   {
-    id: "SL-2024-088", property: "Palm Grove - Plot D-41", broker: "Sneha Reddy",
+    id: "SL-2024-088", property: "Palm Grove - Plot D-41", associate: "Sneha Reddy",
     buyerName: "Kavita Sharma", buyerPhone: "+91 95004 56789",
     amount: 5500000, date: "2024-03-28", status: "rejected",
     commissions: [],
   },
   {
-    id: "SL-2024-087", property: "Lotus Park - Plot E-19", broker: "Vikram Patel",
+    id: "SL-2024-087", property: "Lotus Park - Plot E-19", associate: "Vikram Patel",
     buyerName: "Ajay Nair", buyerPhone: "+91 94005 67890",
     amount: 7200000, date: "2024-03-22", status: "approved",
     commissions: [
-      { broker: "Vikram Patel", role: "Seller (L0)", pct: 4, amount: 288000, status: "paid" },
-      { broker: "Rahul Sharma", role: "Upline (L1)", pct: 1.5, amount: 108000, status: "paid" },
+      { associate: "Vikram Patel", role: "Seller (L0)", pct: 4, amount: 288000, status: "paid" },
+      { associate: "Rahul Sharma", role: "Upline (L1)", pct: 1.5, amount: 108000, status: "paid" },
     ],
   },
 ];
@@ -242,9 +242,9 @@ export default function SalesPage() {
               </div>
               <Dialog open={addOpen} onOpenChange={setAddOpen}>
                 <DialogTrigger
-                  className="inline-flex items-center gap-2 h-9 px-4 rounded-xl text-sm font-semibold text-white"
-                  style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}>
-                  <Plus className="w-4 h-4" />
+                  className="inline-flex items-center gap-2 h-10 px-4 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-90 shadow-lg shadow-indigo-200"
+                  style={{ background: "#6366f1" }}>
+                  <Plus className="w-4 h-4 mr-2" />
                   Record Sale
                 </DialogTrigger>
                 <DialogContent className="max-w-lg">
@@ -333,9 +333,9 @@ function CommissionLedger() {
                     <div className="flex items-center gap-2">
                       <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
                         style={{ background: "#ede9fe", color: "#1e1b4b" }}>
-                        {entry.broker.charAt(0)}
+                        {entry.associate.charAt(0)}
                       </div>
-                      <span className="text-sm font-medium text-[#1e1b4b]">{entry.broker}</span>
+                      <span className="text-sm font-medium text-[#1e1b4b]">{entry.associate}</span>
                     </div>
                   </TableCell>
                   <TableCell>

@@ -9,9 +9,11 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Masheuri Group — Real Estate Broker Platform",
-  description: "Manage brokers, properties, leads and commissions",
+  title: "Masheuri Group — Real Estate Associate Platform",
+  description: "Manage associates, properties, leads and commissions",
 };
+
+import { Toaster } from "@/components/ui/sonner";
 
 export default function RootLayout({
   children,
@@ -20,7 +22,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${inter.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {children}
+        <Toaster position="top-right" />
+      </body>
     </html>
   );
 }

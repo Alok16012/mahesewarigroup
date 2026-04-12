@@ -66,7 +66,7 @@ export default function RegisterPage() {
         </div>
 
         <p className="relative text-white/30 text-sm">
-          Already a broker?{" "}
+          Already an associate?{" "}
           <Link href="/login" className="text-[#D4AF37] hover:underline">Sign in here</Link>
         </p>
       </div>
@@ -75,7 +75,7 @@ export default function RegisterPage() {
       <div className="flex-1 flex items-center justify-center p-8 bg-background overflow-y-auto">
         <div className="w-full max-w-md animate-fade-in">
           <h1 className="text-2xl font-bold text-[#1a2b4a] mb-1">Create your account</h1>
-          <p className="text-muted-foreground text-sm mb-8">Register as a broker using your referral code</p>
+          <p className="text-muted-foreground text-sm mb-8">Register as an associate using your referral code</p>
 
           <form className="space-y-4">
             {/* Referral Code */}

@@ -243,25 +243,25 @@ export default function BrokersPage() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-secondary/50">
-                    {["Broker", "Contact", "Referral Code", "Level", "Referred By", "Sales", "Commission", "Status", "Actions"].map((h) => (
+                    {["Associate", "Contact", "Referral Code", "Level", "Referred By", "Sales", "Commission", "Status", "Actions"].map((h) => (
                       <TableHead key={h} className="font-semibold text-[#1e1b4b] text-xs">{h}</TableHead>
                     ))}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filtered.map((broker) => {
-                    const sc = statusConfig[broker.status];
+                  {filtered.map((associate) => {
+                    const sc = statusConfig[associate.status];
                     return (
-                      <TableRow key={broker.id} className="hover:bg-secondary/30 transition-colors">
+                      <TableRow key={associate.id} className="hover:bg-secondary/30 transition-colors">
                         <TableCell>
                           <div className="flex items-center gap-3">
                             <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0"
                               style={{ background: "#ede9fe", color: "#1e1b4b" }}>
-                              {broker.name.charAt(0)}
+                              {associate.name.charAt(0)}
                             </div>
                             <div>
-                              <p className="font-semibold text-[#1e1b4b] text-sm">{broker.name}</p>
-                              <p className="text-xs text-muted-foreground">{broker.id}</p>
+                              <p className="font-semibold text-[#1e1b4b] text-sm">{associate.name}</p>
+                              <p className="text-xs text-muted-foreground">{associate.id}</p>
                             </div>
                           </div>
                         </TableCell>
@@ -269,18 +269,18 @@ export default function BrokersPage() {
                           <div className="space-y-0.5">
                             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                               <Mail className="w-3 h-3" />
-                              {broker.email}
+                              {associate.email}
                             </div>
                             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                               <Phone className="w-3 h-3" />
-                              {broker.phone}
+                              {associate.phone}
                             </div>
                           </div>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1.5">
                             <code className="text-xs font-mono bg-secondary px-2 py-0.5 rounded text-[#1e1b4b]">
-                              {broker.referralCode}
+                              {associate.referralCode}
                             </code>
                             <button className="text-muted-foreground hover:text-[#1e1b4b]">
                               <Copy className="w-3 h-3" />
@@ -289,18 +289,18 @@ export default function BrokersPage() {
                         </TableCell>
                         <TableCell>
                           <Badge className="text-xs" style={{ background: "#eef2ff", color: "#6366f1" }}>
-                            Level {broker.level}
+                            Level {associate.level}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{broker.referredBy}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{associate.referredBy}</TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1 text-sm font-semibold text-[#1e1b4b]">
                             <TrendingUp className="w-3.5 h-3.5 text-green-500" />
-                            {broker.sales}
+                            {associate.sales}
                           </div>
                         </TableCell>
                         <TableCell className="font-semibold text-sm text-[#1e1b4b]">
-                          {formatINR(broker.commission)}
+                          {formatINR(associate.commission)}
                         </TableCell>
                         <TableCell>
                           <Badge className="text-xs px-2 py-0.5" style={{ background: sc.bg, color: sc.color }}>
@@ -316,12 +316,12 @@ export default function BrokersPage() {
                               variant="outline"
                               size="sm"
                               className={`h-7 text-xs px-2 ${
-                                broker.status === "active"
+                                associate.status === "active"
                                   ? "text-red-500 border-red-200 hover:bg-red-50"
                                   : "text-green-600 border-green-200 hover:bg-green-50"
                               }`}
                             >
-                              {broker.status === "active" ? "Deactivate" : "Activate"}
+                              {associate.status === "active" ? "Deactivate" : "Activate"}
                             </Button>
                           </div>
                         </TableCell>
@@ -378,26 +378,26 @@ export default function BrokersPage() {
               </div>
             </Card>
 
-            {/* Broker Detail Card */}
+            {/* Associate Detail Card */}
             <div className="grid grid-cols-3 gap-4 mt-4">
-              {brokers.slice(0, 3).map((broker) => (
-                <Card key={broker.id} className="p-4 border border-border shadow-sm hover:shadow-md transition-shadow">
+              {associates.slice(0, 3).map((associate) => (
+                <Card key={associate.id} className="p-4 border border-border shadow-sm hover:shadow-md transition-shadow">
                   <div className="flex items-start gap-3 mb-3">
                     <div className="w-11 h-11 rounded-full flex items-center justify-center text-base font-bold"
                       style={{ background: "#ede9fe", color: "#1e1b4b" }}>
-                      {broker.name.charAt(0)}
+                      {associate.name.charAt(0)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-[#1e1b4b] text-sm truncate">{broker.name}</p>
-                      <p className="text-xs text-muted-foreground">{broker.id}</p>
+                      <p className="font-semibold text-[#1e1b4b] text-sm truncate">{associate.name}</p>
+                      <p className="text-xs text-muted-foreground">{associate.id}</p>
                     </div>
                     <Badge className="text-xs flex-shrink-0" style={{ background: "#dcfce7", color: "#166534" }}>Active</Badge>
                   </div>
                   <div className="grid grid-cols-3 gap-2 text-center">
                     {[
-                      { label: "Sales", value: broker.sales },
-                      { label: "Downline", value: broker.downline },
-                      { label: "Level", value: broker.level },
+                      { label: "Sales", value: associate.sales },
+                      { label: "Downline", value: associate.downline },
+                      { label: "Level", value: associate.level },
                     ].map((s) => (
                       <div key={s.label} className="rounded-lg p-2" style={{ background: "#f8fafc" }}>
                         <p className="text-base font-bold text-[#1e1b4b]">{s.value}</p>
@@ -408,12 +408,12 @@ export default function BrokersPage() {
                   <div className="mt-3 pt-3 border-t border-border">
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                       <Hash className="w-3 h-3" />
-                      <code className="font-mono text-[#1e1b4b]">{broker.referralCode}</code>
+                      <code className="font-mono text-[#1e1b4b]">{associate.referralCode}</code>
                       <Copy className="w-3 h-3 ml-auto cursor-pointer hover:text-[#1e1b4b]" />
                     </div>
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-1">
                       <Calendar className="w-3 h-3" />
-                      Joined {broker.joined}
+                      Joined {associate.joined}
                     </div>
                   </div>
                 </Card>

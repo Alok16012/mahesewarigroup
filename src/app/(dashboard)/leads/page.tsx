@@ -19,33 +19,10 @@ import {
   Target, Plus, Search, Phone, Mail, Building2, IndianRupee,
   MoreHorizontal, Upload, Filter, User
 } from "lucide-react";
+import { useCrmData } from "@/hooks/use-crm-data";
+import { toast } from "sonner";
+import { Lead, LeadStatus } from "@/types/database";
 
-type LeadStatus = "new" | "contacted" | "site_visit" | "negotiation" | "converted" | "lost";
-
-interface Lead {
-  id: string;
-  name: string;
-  phone: string;
-  email: string;
-  property: string;
-  budget: number;
-  status: LeadStatus;
-  source: string;
-  broker: string;
-  notes: string;
-  created: string;
-}
-
-const leads: Lead[] = [
-  { id: "L-001", name: "Suresh Gupta", phone: "+91 98001 23456", email: "suresh@email.com", property: "Royal Meadows", budget: 9000000, status: "negotiation", source: "Website", broker: "Rahul Sharma", notes: "Interested in corner plot", created: "2024-04-01" },
-  { id: "L-002", name: "Ritu Agarwal", phone: "+91 97002 34567", email: "ritu@email.com", property: "Silver Oak", budget: 13000000, status: "site_visit", source: "Referral", broker: "Priya Mehta", notes: "Wants 3BHK", created: "2024-04-02" },
-  { id: "L-003", name: "Manoj Tiwari", phone: "+91 96003 45678", email: "manoj@email.com", property: "Green Valley", budget: 25000000, status: "converted", source: "Direct", broker: "Amit Kumar", notes: "Converted — Villa B-12", created: "2024-03-28" },
-  { id: "L-004", name: "Kavita Sharma", phone: "+91 95004 56789", email: "kavita@email.com", property: "Palm Grove", budget: 6000000, status: "lost", source: "Advertisement", broker: "Sneha Reddy", notes: "Budget constraint", created: "2024-03-25" },
-  { id: "L-005", name: "Ajay Nair", phone: "+91 94005 67890", email: "ajay@email.com", property: "Lotus Park", budget: 8000000, status: "contacted", source: "Website", broker: "Vikram Patel", notes: "Follow up on Tuesday", created: "2024-04-05" },
-  { id: "L-006", name: "Pooja Joshi", phone: "+91 93006 78901", email: "pooja@email.com", property: "Royal Meadows", budget: 9500000, status: "new", source: "Walk-in", broker: "Rahul Sharma", notes: "Visited office today", created: "2024-04-08" },
-  { id: "L-007", name: "Kiran Desai", phone: "+91 92007 89012", email: "kiran@email.com", property: "Sunrise Heights", budget: 16000000, status: "new", source: "Social Media", broker: "Priya Mehta", notes: "Interested in 2BHK", created: "2024-04-08" },
-  { id: "L-008", name: "Ramesh Pillai", phone: "+91 91008 90123", email: "ramesh@email.com", property: "Heritage Hills", budget: 50000000, status: "site_visit", source: "Referral", broker: "Rahul Sharma", notes: "High-value client", created: "2024-04-03" },
-];
 
 const stages: { key: LeadStatus; label: string; color: string; textColor: string; borderColor: string }[] = [
   { key: "new", label: "New", color: "#eef2ff", textColor: "#6366f1", borderColor: "#6366f1" },
@@ -59,7 +36,7 @@ const stages: { key: LeadStatus; label: string; color: string; textColor: string
 const formatINR = (v: number) =>
   v >= 10000000 ? `₹${(v / 10000000).toFixed(1)}Cr` : `₹${(v / 100000).toFixed(0)}L`;
 
-function LeadCard({ lead, stage }: { lead: Lead; stage: typeof stages[0] }) {
+function LeadCard({ lead, stage, onStatusChange }: { lead: Lead; stage: typeof stages[0]; onStatusChange: (status: any) => void }) {
   return (
     <div className="bg-white rounded-xl p-3.5 border border-border shadow-sm hover:shadow-md transition-shadow cursor-pointer group">
       <div className="flex items-start justify-between mb-2">
@@ -73,15 +50,22 @@ function LeadCard({ lead, stage }: { lead: Lead; stage: typeof stages[0] }) {
             <p className="text-xs text-muted-foreground">{lead.id}</p>
           </div>
         </div>
-        <button className="text-muted-foreground hover:text-[#1e1b4b] opacity-0 group-hover:opacity-100 transition-opacity">
-          <MoreHorizontal className="w-4 h-4" />
-        </button>
+        <Select onValueChange={onStatusChange}>
+          <SelectTrigger className="w-6 h-6 p-0 border-0 bg-transparent flex items-center justify-center text-muted-foreground hover:text-[#1e1b4b]">
+            <MoreHorizontal className="w-4 h-4" />
+          </SelectTrigger>
+          <SelectContent>
+            {stages.map((s) => (
+              <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="space-y-1.5 mb-3">
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <Building2 className="w-3 h-3 flex-shrink-0" />
-          <span className="truncate">{lead.property}</span>
+          <span className="truncate">{lead.property_name || "N/A"}</span>
         </div>
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <IndianRupee className="w-3 h-3 flex-shrink-0" />
@@ -94,7 +78,7 @@ function LeadCard({ lead, stage }: { lead: Lead; stage: typeof stages[0] }) {
       </div>
 
       <div className="flex items-center justify-between pt-2 border-t border-border">
-        <span className="text-xs text-muted-foreground">{lead.broker.split(" ")[0]}</span>
+        <span className="text-xs text-muted-foreground">{(lead.associate_name || "Admin").split(" ")[0]}</span>
         <Badge className="text-[10px] px-1.5 py-0.5" style={{ background: "#f1f5f9", color: "#64748b" }}>
           {lead.source}
         </Badge>
@@ -106,22 +90,29 @@ function LeadCard({ lead, stage }: { lead: Lead; stage: typeof stages[0] }) {
 export default function LeadsPage() {
   const [search, setSearch] = useState("");
   const [addOpen, setAddOpen] = useState(false);
+  const { leads, loading, addLead, updateLeadStatus } = useCrmData();
 
   const filtered = leads.filter(
     (l) =>
       l.name.toLowerCase().includes(search.toLowerCase()) ||
       l.phone.includes(search) ||
-      l.property.toLowerCase().includes(search.toLowerCase())
+      (l.property_name && l.property_name.toLowerCase().includes(search.toLowerCase()))
   );
 
   const totalLeads = leads.length;
   const converted = leads.filter((l) => l.status === "converted").length;
-  const conversionRate = Math.round((converted / totalLeads) * 100);
+  const conversionRate = totalLeads > 0 ? Math.round((converted / totalLeads) * 100) : 0;
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#6366f1]"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-screen">
-      
-
       <div className="flex-1 p-6 space-y-5 animate-fade-in">
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
@@ -151,27 +142,12 @@ export default function LeadsPage() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <Select>
-              <SelectTrigger className="h-9 w-36 bg-white">
-                <Filter className="w-3.5 h-3.5 mr-1 text-muted-foreground" />
-                <SelectValue placeholder="Filter" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Brokers</SelectItem>
-                <SelectItem value="rahul">Rahul Sharma</SelectItem>
-                <SelectItem value="priya">Priya Mehta</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
 
           <div className="flex items-center gap-2">
-            <Button variant="outline" className="h-9 gap-2 text-sm border-[#1e1b4b]/30 text-[#1e1b4b]">
-              <Upload className="w-3.5 h-3.5" />
-              Import CSV
-            </Button>
             <Dialog open={addOpen} onOpenChange={setAddOpen}>
               <DialogTrigger
-                className="inline-flex items-center gap-2 h-9 px-4 rounded-xl text-sm font-semibold text-white"
+                className="inline-flex items-center gap-2 h-9 px-4 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-90"
                 style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}>
                 <Plus className="w-4 h-4" />
                 Add Lead
@@ -180,7 +156,14 @@ export default function LeadsPage() {
                 <DialogHeader>
                   <DialogTitle className="text-[#1e1b4b]">Add New Lead</DialogTitle>
                 </DialogHeader>
-                <AddLeadForm onClose={() => setAddOpen(false)} />
+                <AddLeadForm 
+                  onClose={() => setAddOpen(false)} 
+                  onSubmit={async (data) => {
+                    await addLead(data);
+                    setAddOpen(false);
+                    toast.success("Lead added successfully!");
+                  }} 
+                />
               </DialogContent>
             </Dialog>
           </div>
@@ -200,7 +183,6 @@ export default function LeadsPage() {
                 const stageLeads = filtered.filter((l) => l.status === stage.key);
                 return (
                   <div key={stage.key} className="flex-shrink-0 w-64">
-                    {/* Column header */}
                     <div className="flex items-center justify-between mb-3 px-1">
                       <div className="flex items-center gap-2">
                         <div className="w-2 h-2 rounded-full" style={{ background: stage.borderColor }} />
@@ -212,11 +194,15 @@ export default function LeadsPage() {
                       </span>
                     </div>
 
-                    {/* Drop zone */}
                     <div className="min-h-[200px] rounded-xl p-2 space-y-2"
                       style={{ background: stage.color + "80" }}>
                       {stageLeads.map((lead) => (
-                        <LeadCard key={lead.id} lead={lead} stage={stage} />
+                        <LeadCard 
+                          key={lead.id} 
+                          lead={lead} 
+                          stage={stage} 
+                          onStatusChange={(status) => updateLeadStatus(lead.id, status)}
+                        />
                       ))}
                       {stageLeads.length === 0 && (
                         <div className="flex items-center justify-center h-20 text-xs text-muted-foreground">
@@ -236,7 +222,7 @@ export default function LeadsPage() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-secondary/50">
-                    {["Lead", "Contact", "Property", "Budget", "Broker", "Source", "Status", "Actions"].map((h) => (
+                    {["Lead", "Contact", "Property", "Budget", "Broker", "Status", "Actions"].map((h) => (
                       <TableHead key={h} className="font-semibold text-[#1e1b4b] text-xs">{h}</TableHead>
                     ))}
                   </TableRow>
@@ -268,14 +254,9 @@ export default function LeadsPage() {
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{lead.property}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{lead.property_name || "N/A"}</TableCell>
                         <TableCell className="font-semibold text-sm text-[#1e1b4b]">{formatINR(lead.budget)}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">{lead.broker}</TableCell>
-                        <TableCell>
-                          <Badge className="text-xs" style={{ background: "#f1f5f9", color: "#64748b" }}>
-                            {lead.source}
-                          </Badge>
-                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{lead.associate_name || "Admin"}</TableCell>
                         <TableCell>
                           <Badge className="text-xs px-2 py-0.5" style={{ background: stage.color, color: stage.textColor }}>
                             {stage.label}
@@ -283,10 +264,7 @@ export default function LeadsPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
-                            <Button variant="outline" size="sm" className="h-7 text-xs px-2.5 text-[#1e1b4b] border-[#1e1b4b]/30">
-                              Edit
-                            </Button>
-                            <Select>
+                            <Select onValueChange={(v) => updateLeadStatus(lead.id, v as any)}>
                               <SelectTrigger className="h-7 text-xs w-24 border-[#1e1b4b]/30">
                                 <SelectValue placeholder="Move to" />
                               </SelectTrigger>
@@ -311,22 +289,58 @@ export default function LeadsPage() {
   );
 }
 
-function AddLeadForm({ onClose }: { onClose: () => void }) {
+function AddLeadForm({ onClose, onSubmit }: { onClose: () => void; onSubmit: (data: any) => Promise<void> }) {
+  const [formData, setFormData] = useState({
+    name: "",
+    phone: "",
+    email: "",
+    property_name: "Royal Meadows",
+    budget: 9000000,
+    source: "Website",
+    status: "new" as any,
+    notes: "",
+    associate_id: "A-001",
+    associate_name: "Rahul Sharma"
+  });
+
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSumbit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.name || !formData.phone) {
+      toast.error("Please fill required fields");
+      return;
+    }
+    setSubmitting(true);
+    await onSubmit(formData);
+    setSubmitting(false);
+  };
+
   return (
-    <div className="space-y-4 pt-2">
+    <form className="space-y-4 pt-2" onSubmit={handleSumbit}>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
           <Label className="text-sm font-medium text-[#1e1b4b]">Buyer Name *</Label>
           <div className="relative">
             <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input placeholder="Full name" className="pl-9 h-10" />
+            <Input 
+              placeholder="Full name" 
+              className="pl-9 h-10" 
+              value={formData.name}
+              onChange={(e) => setFormData({...formData, name: e.target.value})}
+            />
           </div>
         </div>
         <div className="space-y-1.5">
           <Label className="text-sm font-medium text-[#1e1b4b]">Phone *</Label>
           <div className="relative">
             <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input placeholder="+91 98xxx xxxxx" className="pl-9 h-10" />
+            <Input 
+              placeholder="+91 98xxx xxxxx" 
+              className="pl-9 h-10" 
+              value={formData.phone}
+              onChange={(e) => setFormData({...formData, phone: e.target.value})}
+            />
           </div>
         </div>
       </div>
@@ -335,19 +349,25 @@ function AddLeadForm({ onClose }: { onClose: () => void }) {
         <Label className="text-sm font-medium text-[#1e1b4b]">Email</Label>
         <div className="relative">
           <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input type="email" placeholder="buyer@email.com" className="pl-9 h-10" />
+          <Input 
+            type="email" 
+            placeholder="buyer@email.com" 
+            className="pl-9 h-10" 
+            value={formData.email}
+            onChange={(e) => setFormData({...formData, email: e.target.value})}
+          />
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
           <Label className="text-sm font-medium text-[#1e1b4b]">Interested Property</Label>
-          <Select>
+          <Select value={formData.property_name} onValueChange={(v) => setFormData({...formData, property_name: v || ""})}>
             <SelectTrigger className="h-10"><SelectValue placeholder="Select property" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="p1">Royal Meadows</SelectItem>
-              <SelectItem value="p2">Silver Oak</SelectItem>
-              <SelectItem value="p3">Palm Grove</SelectItem>
+              <SelectItem value="Royal Meadows">Royal Meadows</SelectItem>
+              <SelectItem value="Silver Oak">Silver Oak</SelectItem>
+              <SelectItem value="Palm Grove">Palm Grove</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -355,7 +375,13 @@ function AddLeadForm({ onClose }: { onClose: () => void }) {
           <Label className="text-sm font-medium text-[#1e1b4b]">Budget (₹)</Label>
           <div className="relative">
             <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input type="number" placeholder="9000000" className="pl-9 h-10" />
+            <Input 
+              type="number" 
+              placeholder="9000000" 
+              className="pl-9 h-10" 
+              value={formData.budget}
+              onChange={(e) => setFormData({...formData, budget: Number(e.target.value)})}
+            />
           </div>
         </div>
       </div>
@@ -363,20 +389,20 @@ function AddLeadForm({ onClose }: { onClose: () => void }) {
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
           <Label className="text-sm font-medium text-[#1e1b4b]">Lead Source</Label>
-          <Select>
+          <Select value={formData.source} onValueChange={(v) => setFormData({...formData, source: v})}>
             <SelectTrigger className="h-10"><SelectValue placeholder="Source" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="website">Website</SelectItem>
-              <SelectItem value="referral">Referral</SelectItem>
-              <SelectItem value="social">Social Media</SelectItem>
-              <SelectItem value="advertisement">Advertisement</SelectItem>
-              <SelectItem value="direct">Direct / Walk-in</SelectItem>
+              <SelectItem value="Website">Website</SelectItem>
+              <SelectItem value="Referral">Referral</SelectItem>
+              <SelectItem value="Social Media">Social Media</SelectItem>
+              <SelectItem value="Advertisement">Advertisement</SelectItem>
+              <SelectItem value="Direct">Direct / Walk-in</SelectItem>
             </SelectContent>
           </Select>
         </div>
         <div className="space-y-1.5">
           <Label className="text-sm font-medium text-[#1e1b4b]">Initial Status</Label>
-          <Select>
+          <Select value={formData.status} onValueChange={(v) => setFormData({...formData, status: v as any})}>
             <SelectTrigger className="h-10"><SelectValue placeholder="Status" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="new">New</SelectItem>
@@ -388,15 +414,21 @@ function AddLeadForm({ onClose }: { onClose: () => void }) {
 
       <div className="space-y-1.5">
         <Label className="text-sm font-medium text-[#1e1b4b]">Notes</Label>
-        <Textarea placeholder="Any additional notes about this lead..." className="resize-none" rows={3} />
+        <Textarea 
+          placeholder="Any additional notes about this lead..." 
+          className="resize-none" 
+          rows={3} 
+          value={formData.notes}
+          onChange={(e) => setFormData({...formData, notes: e.target.value})}
+        />
       </div>
 
       <div className="flex gap-3 pt-2">
-        <Button variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
-        <Button className="flex-1" style={{ background: "linear-gradient(135deg, #1e1b4b, #8b5cf6)", color: "white" }}>
-          Add Lead
+        <Button variant="outline" type="button" className="flex-1" onClick={onClose}>Cancel</Button>
+        <Button type="submit" disabled={submitting} className="flex-1" style={{ background: "linear-gradient(135deg, #1e1b4b, #8b5cf6)", color: "white" }}>
+          {submitting ? "Adding..." : "Add Lead"}
         </Button>
       </div>
-    </div>
+    </form>
   );
 }
