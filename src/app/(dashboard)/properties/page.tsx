@@ -216,6 +216,11 @@ export default function PropertiesPage() {
                           <Maximize2 className="w-4 h-4" />
                         </div>
                       )}
+                      {prop.type === "plot" && prop.plot_units && prop.plot_units.length > 0 && (
+                        <div className="flex items-center justify-center w-8 h-8 rounded-xl bg-green-50 text-green-600 border border-green-100" title="Site Map Available">
+                          <LayoutGrid className="w-4 h-4" />
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -288,15 +293,73 @@ export default function PropertiesPage() {
 function PropertyDetailView({ property, onClose }: { property: Property; onClose: () => void }) {
   const [activeImage, setActiveImage] = useState(0);
   const [showMap, setShowMap] = useState(false);
+  const [showSiteMap, setShowSiteMap] = useState(false);
   const sc = statusConfig[property.status] || statusConfig.available;
 
   const displayImages = property.images && property.images.length > 0 ? property.images : [];
+  const plotUnits = property.plot_units || [];
+
+  const availableCount = plotUnits.filter(u => u.status === "available").length;
+  const reservedCount = plotUnits.filter(u => u.status === "reserved").length;
+  const soldCount = plotUnits.filter(u => u.status === "sold").length;
 
   return (
     <div className="flex flex-col lg:flex-row h-[70vh] lg:h-[80vh]">
       {/* Media Section - Left Side */}
       <div className="w-full lg:w-3/5 h-56 sm:h-64 lg:h-full bg-[#0f172a] relative flex items-center justify-center overflow-hidden rounded-t-2xl lg:rounded-l-2xl lg:rounded-tr-none">
-        {showMap && property.map_image ? (
+        {showSiteMap && plotUnits.length > 0 ? (
+          <div className="absolute inset-0 p-4 overflow-auto bg-slate-900">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-white font-bold text-sm">Site Map - {property.name}</h3>
+              <button onClick={() => setShowSiteMap(false)} className="text-white/70 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+              {plotUnits.map((unit) => {
+                const unitSc = statusConfig[unit.status] || statusConfig.available;
+                return (
+                  <div
+                    key={unit.id}
+                    className={`relative p-3 rounded-lg text-center cursor-pointer transition-all hover:scale-105 ${
+                      unit.status === "sold" 
+                        ? "bg-red-500/20 border-2 border-red-500" 
+                        : unit.status === "reserved"
+                        ? "bg-amber-500/20 border-2 border-amber-500"
+                        : "bg-green-500/20 border-2 border-green-500 hover:border-green-400"
+                    }`}
+                  >
+                    <p className="text-white font-bold text-xs">{unit.unit_number}</p>
+                    {unit.status === "sold" && (
+                      <p className="text-red-400 text-[10px] font-bold mt-1">SOLD</p>
+                    )}
+                    {unit.status === "reserved" && (
+                      <p className="text-amber-400 text-[10px] font-bold mt-1">RESERVED</p>
+                    )}
+                    {unit.status === "available" && (
+                      <p className="text-green-400 text-[10px] font-bold mt-1">AVAILABLE</p>
+                    )}
+                    {unit.size && <p className="text-white/60 text-[9px] mt-1">{unit.size}</p>}
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex items-center gap-4 mt-4 pt-4 border-t border-white/10">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded bg-green-500" />
+                <span className="text-white/70 text-xs">Available ({availableCount})</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded bg-amber-500" />
+                <span className="text-white/70 text-xs">Reserved ({reservedCount})</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded bg-red-500" />
+                <span className="text-white/70 text-xs">Sold ({soldCount})</span>
+              </div>
+            </div>
+          </div>
+        ) : showMap && property.map_image ? (
           <img 
             src={property.map_image} 
             alt="Property Map" 
@@ -325,17 +388,25 @@ function PropertyDetailView({ property, onClose }: { property: Property; onClose
         {/* Media Controls */}
         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-black/60 backdrop-blur-md p-1.5 rounded-xl border border-white/10 z-10">
           <button 
-            onClick={() => setShowMap(false)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${!showMap ? 'bg-white text-black shadow-lg' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
+            onClick={() => { setShowMap(false); setShowSiteMap(false); }}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${!showMap && !showSiteMap ? 'bg-white text-black shadow-lg' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
           >
             PHOTOS
           </button>
           {property.map_image && (
             <button 
-              onClick={() => setShowMap(true)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${showMap ? 'bg-indigo-500 text-white shadow-lg' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
+              onClick={() => { setShowMap(true); setShowSiteMap(false); }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${showMap ? 'bg-white text-black shadow-lg' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
             >
               MAP
+            </button>
+          )}
+          {property.type === "plot" && plotUnits.length > 0 && (
+            <button 
+              onClick={() => { setShowSiteMap(true); setShowMap(false); }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${showSiteMap ? 'bg-indigo-500 text-white shadow-lg' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
+            >
+              SITE MAP
             </button>
           )}
         </div>

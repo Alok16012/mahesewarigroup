@@ -32,6 +32,18 @@ export interface Lead {
   created_at: string;
 }
 
+export interface PlotUnit {
+  id: string;
+  property_id: string;
+  unit_number: string;
+  status: "available" | "reserved" | "sold";
+  buyer_name?: string;
+  price?: number;
+  size?: string;
+  facing?: string;
+  created_at: string;
+}
+
 export interface Property {
   id: string; // UUID
   name: string;
@@ -42,6 +54,7 @@ export interface Property {
   image_url?: string;
   images?: string[];
   map_image?: string;
+  plot_units?: PlotUnit[];
   created_at: string;
 }
 

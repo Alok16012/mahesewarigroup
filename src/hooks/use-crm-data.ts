@@ -1,17 +1,32 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
-import { Lead, Property, LeadStatus } from "@/types/database";
+import { Lead, Property, PlotUnit, LeadStatus } from "@/types/database";
 import { toast } from "sonner";
 
-// Mock Data (Fallback for Development without Supabase)
+const MOCK_PLOT_UNITS: PlotUnit[] = [
+  { id: "U-001", property_id: "P-001", unit_number: "A-101", status: "sold", buyer_name: "Rajesh Kumar", price: 8500000, size: "200 sqyd", facing: "East", created_at: "2024-02-15" },
+  { id: "U-002", property_id: "P-001", unit_number: "A-102", status: "sold", buyer_name: "Priya Singh", price: 8200000, size: "200 sqyd", facing: "West", created_at: "2024-03-01" },
+  { id: "U-003", property_id: "P-001", unit_number: "A-103", status: "available", size: "200 sqyd", facing: "North", created_at: "2024-01-10" },
+  { id: "U-004", property_id: "P-001", unit_number: "A-104", status: "reserved", size: "250 sqyd", facing: "South", created_at: "2024-01-10" },
+  { id: "U-005", property_id: "P-001", unit_number: "A-105", status: "available", size: "250 sqyd", facing: "East", created_at: "2024-01-10" },
+  { id: "U-006", property_id: "P-001", unit_number: "A-106", status: "sold", buyer_name: "Anil Reddy", price: 9500000, size: "300 sqyd", facing: "West", created_at: "2024-03-10" },
+  { id: "U-007", property_id: "P-001", unit_number: "A-107", status: "available", size: "300 sqyd", facing: "North", created_at: "2024-01-10" },
+  { id: "U-008", property_id: "P-001", unit_number: "A-108", status: "available", size: "200 sqyd", facing: "South", created_at: "2024-01-10" },
+  { id: "U-009", property_id: "P-001", unit_number: "B-101", status: "sold", buyer_name: "Sunita Devi", price: 8800000, size: "200 sqyd", facing: "East", created_at: "2024-02-20" },
+  { id: "U-010", property_id: "P-001", unit_number: "B-102", status: "available", size: "200 sqyd", facing: "West", created_at: "2024-01-10" },
+  { id: "U-011", property_id: "P-001", unit_number: "B-103", status: "available", size: "250 sqyd", facing: "North", created_at: "2024-01-10" },
+  { id: "U-012", property_id: "P-001", unit_number: "B-104", status: "sold", buyer_name: "Mohit Shah", price: 9200000, size: "300 sqyd", facing: "South", created_at: "2024-03-15" },
+];
+
 const MOCK_LEADS: Lead[] = [
   { id: "L-001", name: "Suresh Gupta", phone: "+91 98001 23456", email: "suresh@email.com", property_name: "Royal Meadows", budget: 9000000, status: "negotiation", source: "Website", associate_id: "A-001", associate_name: "Rahul Sharma", notes: "Interested in corner plot", created_at: "2024-04-01" },
   { id: "L-002", name: "Ritu Agarwal", phone: "+91 97002 34567", email: "ritu@email.com", property_name: "Silver Oak", budget: 13000000, status: "site_visit", source: "Referral", associate_id: "A-002", associate_name: "Priya Mehta", notes: "Wants 3BHK", created_at: "2024-04-02" },
 ];
 
 const MOCK_PROPERTIES: Property[] = [
-  { id: "P-001", name: "Royal Meadows — Plot A-204", location: "Sector 12, Gurgaon", type: "plot", price_range: "85L", status: "available", created_at: "2024-01-01" },
-  { id: "P-002", name: "Green Valley — Villa B-12", location: "Baner, Pune", type: "residential", price_range: "2.2Cr", status: "sold", created_at: "2024-01-02" },
+  { id: "P-001", name: "Royal Meadows — Sector 12", location: "Sector 12, Gurgaon", type: "plot", price_range: "75L - 1.2Cr", status: "available", images: [], plot_units: MOCK_PLOT_UNITS, created_at: "2024-01-01" },
+  { id: "P-002", name: "Green Valley — Villa B-12", location: "Baner, Pune", type: "residential", price_range: "2.2Cr", status: "sold", images: [], created_at: "2024-01-02" },
+  { id: "P-003", name: "Skyline Tower — Office Space", location: "Cyber City, Gurgaon", type: "commercial", price_range: "1.5Cr", status: "available", images: [], created_at: "2024-01-03" },
 ];
 
 export function useCrmData() {
