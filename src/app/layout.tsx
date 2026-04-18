@@ -9,7 +9,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Masheuri Group — Real Estate Associate Platform",
+  title: "Maheshwari Group — Real Estate Associate Platform",
   description: "Manage associates, properties, leads and commissions",
 };
 

@@ -35,7 +35,7 @@ export default function RegisterPage() {
             <Home className="w-6 h-6 text-[#1a2b4a]" />
           </div>
           <div>
-            <p className="text-white font-bold text-xl">Masheuri Group</p>
+            <p className="text-white font-bold text-xl">Maheshwari Group</p>
             <p className="text-white/50 text-sm">Real Estate Platform</p>
           </div>
         </div>

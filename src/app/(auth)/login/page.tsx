@@ -90,7 +90,7 @@ export default function LoginPage() {
             <Home className="w-6 h-6 text-white" />
           </div>
           <div>
-            <p className="font-bold text-[#1e1b4b] text-xl">Masheuri Group</p>
+            <p className="font-bold text-[#1e1b4b] text-xl">Maheshwari Group</p>
             <p className="text-gray-400 text-sm">Real Estate Platform</p>
           </div>
         </div>
@@ -129,7 +129,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <p className="relative text-gray-400 text-xs">© 2026 Masheuri Group. All rights reserved.</p>
+        <p className="relative text-gray-400 text-xs">© 2026 Maheshwari Group. All rights reserved.</p>
       </div>
 
       {/* Right Panel — Login Form */}
@@ -141,7 +141,7 @@ export default function LoginPage() {
               style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}>
               <Home className="w-5 h-5 text-white" />
             </div>
-            <p className="font-bold text-[#1e1b4b]">Masheuri Group</p>
+            <p className="font-bold text-[#1e1b4b]">Maheshwari Group</p>
           </div>
 
           <div className="mb-8">

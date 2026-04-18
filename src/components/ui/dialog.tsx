@@ -43,17 +43,29 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  size = "default",
   ...props
 }: DialogPrimitive.Popup.Props & {
   showCloseButton?: boolean
+  size?: "default" | "lg" | "xl" | "full" | "property"
 }) {
+  const sizeClasses = {
+    default: "sm:max-w-sm max-w-[calc(100%-2rem)]",
+    lg: "sm:max-w-lg max-w-[calc(100%-2rem)]",
+    xl: "sm:max-w-xl md:max-w-2xl max-w-[calc(100%-2rem)]",
+    full: "max-w-[95vw] max-h-[95vh]",
+    property: "max-w-3xl sm:max-w-4xl md:max-w-5xl lg:max-w-6xl max-h-[85vh]"
+  }
+
   return (
     <DialogPortal>
-      <DialogOverlay />
+      <DialogOverlay className="bg-black/60 backdrop-blur-sm" />
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 duration-100 outline-none sm:max-w-sm data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+          "fixed top-1/2 left-1/2 z-50 grid w-full -translate-x-1/2 -translate-y-1/2 gap-0 rounded-2xl lg:rounded-3xl bg-popover text-sm text-popover-foreground shadow-2xl duration-100 outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 overflow-hidden",
+          sizeClasses[size],
+          "overflow-y-auto",
           className
         )}
         {...props}
@@ -65,7 +77,7 @@ function DialogContent({
             render={
               <Button
                 variant="ghost"
-                className="absolute top-2 right-2"
+                className="absolute top-2 right-2 z-50"
                 size="icon-sm"
               />
             }

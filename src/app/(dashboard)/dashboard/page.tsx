@@ -90,7 +90,7 @@ export default function DashboardPage() {
       <div className="flex items-start sm:items-center justify-between gap-3 flex-wrap">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-[#1e1b4b]">Good morning, Admin 👋</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Here&apos;s what&apos;s happening with Masheuri Group today</p>
+          <p className="text-sm text-gray-500 mt-0.5">Here&apos;s what&apos;s happening with Maheshwari Group today</p>
         </div>
         <div className="flex items-center gap-2 text-xs text-gray-400 bg-white/70 px-3 py-2 rounded-xl border border-white">
           <Clock className="w-3.5 h-3.5" />
@@ -216,7 +216,7 @@ export default function DashboardPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-semibold text-[#1e1b4b] truncate">{sale.property}</p>
-                  <p className="text-[10px] text-gray-400 mt-0.5">{sale.broker} · {sale.date}</p>
+                  <p className="text-[10px] text-gray-400 mt-0.5">{sale.associate} · {sale.date}</p>
                 </div>
                 <div className="text-right flex-shrink-0">
                   <p className="text-xs font-bold text-[#1e1b4b]">{formatINR(sale.amount)}</p>

@@ -103,7 +103,7 @@ function SaleRow({ sale }: { sale: typeof sales[0] }) {
             <p className="text-xs text-muted-foreground">{sale.date}</p>
           </div>
         </TableCell>
-        <TableCell className="text-sm text-muted-foreground">{sale.broker}</TableCell>
+        <TableCell className="text-sm text-muted-foreground">{sale.associate}</TableCell>
         <TableCell>
           <div>
             <p className="text-sm font-medium text-[#1e1b4b]">{sale.buyerName}</p>
@@ -158,7 +158,7 @@ function SaleRow({ sale }: { sale: typeof sales[0] }) {
                   return (
                     <div key={i} className="bg-white rounded-xl p-3 border border-border">
                       <div className="flex items-center justify-between mb-1">
-                        <p className="text-sm font-semibold text-[#1e1b4b]">{c.broker}</p>
+                        <p className="text-sm font-semibold text-[#1e1b4b]">{c.associate}</p>
                         <Badge className="text-xs" style={{ background: cs.bg, color: cs.color }}>
                           {c.status}
                         </Badge>
@@ -187,7 +187,7 @@ export default function SalesPage() {
   const filtered = sales.filter(
     (s) =>
       s.property.toLowerCase().includes(search.toLowerCase()) ||
-      s.broker.toLowerCase().includes(search.toLowerCase()) ||
+      s.associate.toLowerCase().includes(search.toLowerCase()) ||
       s.id.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -333,9 +333,9 @@ function CommissionLedger() {
                     <div className="flex items-center gap-2">
                       <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
                         style={{ background: "#ede9fe", color: "#1e1b4b" }}>
-                        {entry.associate.charAt(0)}
+                        {entry.broker.charAt(0)}
                       </div>
-                      <span className="text-sm font-medium text-[#1e1b4b]">{entry.associate}</span>
+                      <span className="text-sm font-medium text-[#1e1b4b]">{entry.broker}</span>
                     </div>
                   </TableCell>
                   <TableCell>

@@ -230,7 +230,7 @@ export default function SettingsPage() {
                 <div className="space-y-5 max-w-lg">
                   <div className="space-y-1.5">
                     <Label className="text-sm font-medium text-[#1e1b4b]">Company Name</Label>
-                    <Input defaultValue="Masheuri Group" className="h-10" />
+                    <Input defaultValue="Maheshwari Group" className="h-10" />
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1.5">

@@ -365,7 +365,7 @@ export default function BrokersPage() {
                     M
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-[#1e1b4b]">Masheuri Group (Admin)</p>
+                    <p className="text-sm font-bold text-[#1e1b4b]">Maheshwari Group (Admin)</p>
                     <p className="text-xs text-muted-foreground">Root — Super Admin</p>
                   </div>
                   <Badge className="ml-2 text-xs" style={{ background: "#ede9fe", color: "#1e1b4b" }}>Root</Badge>
@@ -380,7 +380,7 @@ export default function BrokersPage() {
 
             {/* Associate Detail Card */}
             <div className="grid grid-cols-3 gap-4 mt-4">
-              {associates.slice(0, 3).map((associate) => (
+              {brokers.slice(0, 3).map((associate) => (
                 <Card key={associate.id} className="p-4 border border-border shadow-sm hover:shadow-md transition-shadow">
                   <div className="flex items-start gap-3 mb-3">
                     <div className="w-11 h-11 rounded-full flex items-center justify-center text-base font-bold"

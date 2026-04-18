@@ -33,7 +33,7 @@ export default function TopNav() {
             MG
           </div>
           <span className="font-bold text-[#1e1b4b] text-sm hidden sm:block tracking-tight">
-            Masheuri Group
+            Maheshwari Group
           </span>
         </Link>
 

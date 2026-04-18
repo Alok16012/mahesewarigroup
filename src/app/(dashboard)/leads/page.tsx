@@ -389,7 +389,7 @@ function AddLeadForm({ onClose, onSubmit }: { onClose: () => void; onSubmit: (da
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
           <Label className="text-sm font-medium text-[#1e1b4b]">Lead Source</Label>
-          <Select value={formData.source} onValueChange={(v) => setFormData({...formData, source: v})}>
+          <Select value={formData.source} onValueChange={(v) => setFormData({...formData, source: v || "Website"})}>
             <SelectTrigger className="h-10"><SelectValue placeholder="Source" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="Website">Website</SelectItem>

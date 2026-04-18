@@ -39,7 +39,7 @@ export default function Sidebar() {
             <Home className="w-5 h-5 text-[#1a2b4a]" />
           </div>
           <div>
-            <p className="text-white font-bold text-sm leading-tight">Masheuri Group</p>
+            <p className="text-white font-bold text-sm leading-tight">Maheshwari Group</p>
             <p className="text-white/50 text-xs">Real Estate Platform</p>
           </div>
         </div>
