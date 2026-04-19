@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -240,6 +240,11 @@ allAssociates: Associate[];
     status: "active" as AssociateStatus,
   });
 
+  // Sync parent selection when dialog is opened from a different node
+  useEffect(() => {
+    setForm((prev) => ({ ...prev, parentId: defaultParent?.id ?? "admin" }));
+  }, [defaultParent, open]);
+
   const eligibleParents = allAssociates.filter((a) => a.level < 3 && a.status === "active");
 
   const resolveParent = (parentId: string) => {
@@ -320,7 +325,7 @@ allAssociates: Associate[];
             <Label className="text-sm font-medium text-slate-700">Referred By *</Label>
             <Select
               value={form.parentId}
-              onValueChange={(v) => setForm({ ...form, parentId: v })}
+              onValueChange={(v) => v && setForm({ ...form, parentId: v })}
             >
               <SelectTrigger className="h-12 rounded-xl border-slate-200 bg-white">
                 <SelectValue placeholder="Select referrer" />
@@ -450,6 +455,89 @@ allAssociates: Associate[];
   );
 }
 
+// ─── Credentials Modal ────────────────────────────────────────────────────────
+function CredentialsModal({
+  open,
+  name,
+  referralCode,
+  username,
+  password,
+  onClose,
+}: {
+  open: boolean;
+  name: string;
+  referralCode: string;
+  username: string;
+  password: string;
+  onClose: () => void;
+}) {
+  const copy = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success(`${label} copied!`);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-sm">
+        <div className="bg-gradient-to-r from-green-500 to-emerald-600 px-6 py-5 rounded-t-2xl -mx-0 -mt-0">
+          <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center mb-3">
+            <UserCheck className="w-6 h-6 text-white" />
+          </div>
+          <DialogTitle className="text-xl font-bold text-white">Associate Created!</DialogTitle>
+          <p className="text-green-100 text-xs mt-1">Share these credentials with {name}</p>
+        </div>
+
+        <div className="px-6 py-5 space-y-3">
+          {/* Referral Code */}
+          <div className="space-y-1">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Referral Code</p>
+            <div className="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-200">
+              <code className="flex-1 font-mono text-sm font-bold text-[#1e1b4b]">{referralCode}</code>
+              <button onClick={() => copy(referralCode, "Referral code")} className="text-indigo-400 hover:text-indigo-600 transition-colors">
+                <Copy className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Username */}
+          <div className="space-y-1">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Username</p>
+            <div className="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-200">
+              <code className="flex-1 font-mono text-sm text-[#1e1b4b]">{username}</code>
+              <button onClick={() => copy(username, "Username")} className="text-indigo-400 hover:text-indigo-600 transition-colors">
+                <Copy className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Password */}
+          <div className="space-y-1">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Password</p>
+            <div className="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-200">
+              <code className="flex-1 font-mono text-sm text-[#1e1b4b]">{password}</code>
+              <button onClick={() => copy(password, "Password")} className="text-indigo-400 hover:text-indigo-600 transition-colors">
+                <Copy className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-2 p-3 bg-amber-50 rounded-xl text-xs text-amber-700 border border-amber-100 mt-1">
+            <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <span>Save these credentials now. The password will not be shown again.</span>
+          </div>
+
+          <Button
+            className="w-full h-11 rounded-xl bg-[#1e1b4b] text-white hover:bg-[#0f0d24] font-semibold mt-2"
+            onClick={onClose}
+          >
+            Done
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function AssociatesPage() {
   const [associates, setAssociates] = useState<Associate[]>(INITIAL_ASSOCIATES);
@@ -457,6 +545,9 @@ export default function AssociatesPage() {
   const [filterLevel, setFilterLevel] = useState("all");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [addParent, setAddParent] = useState<Associate | null>(null);
+  const [createdCreds, setCreatedCreds] = useState<{
+    name: string; referralCode: string; username: string; password: string;
+  } | null>(null);
 
   const filtered = associates.filter((a) => {
     const matchSearch =
@@ -487,9 +578,11 @@ export default function AssociatesPage() {
     const newId = `A-${String(associates.length + 1).padStart(3, "0")}`;
     const referralCode = `MG-${initials}-${String(associates.length + 1).padStart(3, "0")}`;
     setAssociates((prev) => [...prev, { ...data, id: newId, referralCode }]);
-    toast.success(`${data.name} added as Level ${data.level} associate`);
-    toast.info(`Credentials - Username: ${creds.username}, Password: ${creds.password}`);
     setAddDialogOpen(false);
+    // Show credentials modal after a brief delay so the add dialog fully closes first
+    setTimeout(() => {
+      setCreatedCreds({ name: data.name, referralCode, username: creds.username, password: creds.password });
+    }, 200);
   };
 
   // top-level associates (L1 under admin)
@@ -769,7 +862,7 @@ export default function AssociatesPage() {
                           <Badge className="text-xs" style={{ background: lc.bg, color: lc.color }}>
                             {lc.label}
                           </Badge>
-                          {!canCreate && <Lock className="w-3 h-3 text-orange-400" title="Cannot create further" />}
+                          {!canCreate && <Lock className="w-3 h-3 text-orange-400" aria-label="Cannot create further" />}
                         </div>
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">{associate.parentName}</TableCell>
@@ -822,6 +915,18 @@ export default function AssociatesPage() {
         onClose={() => setAddDialogOpen(false)}
         onAdd={handleAddAssociate}
       />
+
+      {/* Credentials Modal — shown after successful creation */}
+      {createdCreds && (
+        <CredentialsModal
+          open={!!createdCreds}
+          name={createdCreds.name}
+          referralCode={createdCreds.referralCode}
+          username={createdCreds.username}
+          password={createdCreds.password}
+          onClose={() => setCreatedCreds(null)}
+        />
+      )}
     </div>
   );
 }
