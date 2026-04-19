@@ -7,10 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Search, Filter, MapPin, IndianRupee, LayoutGrid, List, Edit, Trash2, Eye, Building2, Maximize2, Upload, X, Loader2, Image as ImageIcon } from "lucide-react";
+import { Plus, Search, Filter, MapPin, IndianRupee, LayoutGrid, List, Edit, Trash2, Eye, Building2, Maximize2, Upload, X, Loader2, Image as ImageIcon, Users } from "lucide-react";
 import { useCrmData } from "@/hooks/use-crm-data";
 import { toast } from "sonner";
 import { Property } from "@/types/database";
@@ -44,8 +44,8 @@ export default function PropertiesPage() {
   const [editingProperty, setEditingProperty] = useState<Property | null>(null);
   const [viewingProperty, setViewingProperty] = useState<Property | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
-  
-  const { properties, loading, addProperty, updateProperty } = useCrmData();
+
+  const { properties, associates, loading, addProperty, updateProperty } = useCrmData();
 
   const filtered = (properties || []).filter((p) => {
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) || p.location.toLowerCase().includes(search.toLowerCase());
@@ -54,6 +54,7 @@ export default function PropertiesPage() {
   });
 
   const handleEdit = (prop: Property) => {
+    console.log("Editing property:", prop);
     setEditingProperty(prop);
     setDialogOpen(true);
   };
@@ -64,6 +65,7 @@ export default function PropertiesPage() {
   };
 
   const handleView = (prop: Property) => {
+    console.log("Viewing property:", prop);
     setViewingProperty(prop);
     setDetailOpen(true);
   };
@@ -85,44 +87,50 @@ export default function PropertiesPage() {
           <p className="text-sm text-gray-400 mt-0.5">Manage all real estate listings</p>
         </div>
         <div className="flex gap-3">
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger 
-              onClick={handleAdd}
-              className="h-10 px-4 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 shadow-md flex items-center gap-2 transition-colors">
-              <Plus className="w-4 h-4" /> Add Property
-            </DialogTrigger>
-            <DialogContent size="xl" className="p-4 sm:p-6">
-              <DialogHeader className="mb-2">
-                <DialogTitle className="text-lg sm:text-xl font-bold text-[#1e1b4b]">
-                  {editingProperty ? "Edit Property" : "Add New Property"}
-                </DialogTitle>
-              </DialogHeader>
-              <PropertyForm 
-                initialData={editingProperty}
-                onClose={() => setDialogOpen(false)} 
-                onSubmit={async (data) => {
-                  if (editingProperty) {
-                    await updateProperty(editingProperty.id, data);
-                    toast.success("Property updated successfully!");
-                  } else {
-                    await addProperty(data);
-                    toast.success("Property added successfully!");
-                  }
-                  setDialogOpen(false);
-                }}
-              />
-            </DialogContent>
-          </Dialog>
+          {/* Plain button — no DialogTrigger, avoids controlled-mode conflict */}
+          <button
+            onClick={handleAdd}
+            className="h-10 px-4 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 shadow-md flex items-center gap-2 transition-colors">
+            <Plus className="w-4 h-4" /> Add Property
+          </button>
         </div>
       </div>
 
+      {/* Add / Edit Dialog — key forces full remount when switching add↔edit */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent size="xl" className="p-4 sm:p-6" showCloseButton={false}>
+          <DialogHeader className="mb-2">
+            <DialogTitle className="text-lg sm:text-xl font-bold text-[#1e1b4b]">
+              {editingProperty ? "Edit Property" : "Add New Property"}
+            </DialogTitle>
+          </DialogHeader>
+          <PropertyForm
+            key={editingProperty?.id ?? "new"}
+            initialData={editingProperty}
+            associates={associates}
+            onClose={() => setDialogOpen(false)}
+            onSubmit={async (data) => {
+              if (editingProperty) {
+                await updateProperty(editingProperty.id, data);
+                toast.success("Property updated successfully!");
+              } else {
+                await addProperty(data);
+                toast.success("Property added successfully!");
+              }
+              setDialogOpen(false);
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+
       {/* Property Details Modal */}
       <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent size="property">
+        <DialogContent size="property" showCloseButton={false}>
           {viewingProperty && (
-            <PropertyDetailView 
-              property={viewingProperty} 
-              onClose={() => setDetailOpen(false)} 
+            <PropertyDetailView
+              key={viewingProperty.id}
+              property={viewingProperty}
+              onClose={() => setDetailOpen(false)}
             />
           )}
         </DialogContent>
@@ -515,7 +523,7 @@ function PropertyDetailView({ property, onClose }: { property: Property; onClose
   );
 }
 
-function PropertyForm({ initialData, onClose, onSubmit }: { initialData?: Property | null; onClose: () => void; onSubmit: (data: any) => Promise<void> }) {
+function PropertyForm({ initialData, onClose, onSubmit, associates }: { initialData?: Property | null; onClose: () => void; onSubmit: (data: any) => Promise<void>; associates: any[] }) {
   const [formData, setFormData] = useState({
     name: initialData?.name || "",
     location: initialData?.location || "",
@@ -524,6 +532,8 @@ function PropertyForm({ initialData, onClose, onSubmit }: { initialData?: Proper
     status: initialData?.status || "available" as any,
     images: initialData?.images || [] as string[],
     map_image: initialData?.map_image || "",
+    associate_id: initialData?.associate_id || "",
+    associate_name: initialData?.associate_name || "",
   });
 
   const [files, setFiles] = useState<{ propertyImages: File[]; mapImage: File | null }>({
@@ -684,6 +694,35 @@ return (
               </SelectContent>
             </Select>
           </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-2">
+            <Users className="w-3.5 h-3.5 text-indigo-500" /> Assigned Associate
+          </Label>
+          <Select 
+            value={formData.associate_id || "none"} 
+            onValueChange={(v: any) => {
+              const selected = v === "none" ? undefined : associates.find(a => a.id === v);
+              setFormData({
+                ...formData, 
+                associate_id: v === "none" ? "" : v,
+                associate_name: selected?.name || ""
+              });
+            }}
+          >
+            <SelectTrigger className="h-11 rounded-xl bg-slate-50 border-slate-200">
+              <SelectValue placeholder="Select an associate (optional)" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">No Associate</SelectItem>
+              {associates.map((a) => (
+                <SelectItem key={a.id} value={a.id}>
+                  {a.name} ({a.referralCode})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 

@@ -55,6 +55,8 @@ export interface Property {
   images?: string[];
   map_image?: string;
   plot_units?: PlotUnit[];
+  associate_id?: string;
+  associate_name?: string;
   created_at: string;
 }
 

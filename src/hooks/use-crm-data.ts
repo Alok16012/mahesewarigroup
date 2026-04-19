@@ -29,9 +29,37 @@ const MOCK_PROPERTIES: Property[] = [
   { id: "P-003", name: "Skyline Tower — Office Space", location: "Cyber City, Gurgaon", type: "commercial", price_range: "1.5Cr", status: "available", images: [], created_at: "2024-01-03" },
 ];
 
+type Associate = {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  level: number;
+  status: "active" | "inactive" | "suspended";
+  referralCode: string;
+  parentId: string;
+  parentName: string;
+  joined: string;
+  sales: number;
+  commission: number;
+};
+
+const MOCK_ASSOCIATES: Associate[] = [
+  { id: "A-001", name: "Alok Kumar", email: "alok@email.com", phone: "+91 98765 00001", level: 1, status: "active", referralCode: "MG-AK-001", parentId: "admin", parentName: "Admin", joined: "2024-01-10", sales: 18, commission: 720000 },
+  { id: "A-002", name: "Priya Mehta", email: "priya@email.com", phone: "+91 98765 00002", level: 1, status: "active", referralCode: "MG-PM-002", parentId: "admin", parentName: "Admin", joined: "2024-01-15", sales: 22, commission: 880000 },
+  { id: "A-003", name: "Ram Singh", email: "ram@email.com", phone: "+91 98765 00003", level: 2, status: "active", referralCode: "MG-RS-003", parentId: "A-001", parentName: "Alok Kumar", joined: "2024-02-01", sales: 10, commission: 400000 },
+  { id: "A-004", name: "Subham Gupta", email: "subham@email.com", phone: "+91 98765 00004", level: 2, status: "active", referralCode: "MG-SG-004", parentId: "A-001", parentName: "Alok Kumar", joined: "2024-02-10", sales: 8, commission: 320000 },
+  { id: "A-005", name: "Vikram Joshi", email: "vikram@email.com", phone: "+91 98765 00005", level: 2, status: "inactive", referralCode: "MG-VJ-005", parentId: "A-002", parentName: "Priya Mehta", joined: "2024-02-20", sales: 4, commission: 160000 },
+  { id: "A-006", name: "Amar Patel", email: "amar@email.com", phone: "+91 98765 00006", level: 3, status: "active", referralCode: "MG-AP-006", parentId: "A-003", parentName: "Ram Singh", joined: "2024-03-05", sales: 3, commission: 120000 },
+  { id: "A-007", name: "Geeta Sharma", email: "geeta@email.com", phone: "+91 98765 00007", level: 3, status: "active", referralCode: "MG-GS-007", parentId: "A-003", parentName: "Ram Singh", joined: "2024-03-10", sales: 5, commission: 200000 },
+  { id: "A-008", name: "Deepika Rao", email: "deepika@email.com", phone: "+91 98765 00008", level: 3, status: "active", referralCode: "MG-DR-008", parentId: "A-004", parentName: "Subham Gupta", joined: "2024-03-15", sales: 2, commission: 80000 },
+  { id: "A-009", name: "Sneha Reddy", email: "sneha@email.com", phone: "+91 98765 00009", level: 3, status: "active", referralCode: "MG-SR-009", parentId: "A-005", parentName: "Vikram Joshi", joined: "2024-03-20", sales: 1, commission: 40000 },
+];
+
 export function useCrmData() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
+  const [associates, setAssociates] = useState<Associate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -72,10 +100,28 @@ export function useCrmData() {
     }
   }, []);
 
+  const fetchAssociates = useCallback(async () => {
+    if (!isSupabaseConfigured()) {
+      setAssociates(MOCK_ASSOCIATES);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .in("role", ["associate", "sub-associate"]);
+
+    if (error) {
+      console.error("Error fetching associates:", error);
+    } else {
+      setAssociates(data as unknown as Associate[]);
+    }
+  }, []);
+
   useEffect(() => {
     async function init() {
       setLoading(true);
-      await Promise.all([fetchLeads(), fetchProperties()]);
+      await Promise.all([fetchLeads(), fetchProperties(), fetchAssociates()]);
       setLoading(false);
     }
     init();
@@ -92,7 +138,7 @@ export function useCrmData() {
         supabase.removeChannel(channel);
       };
     }
-  }, [fetchLeads, fetchProperties]);
+  }, [fetchLeads, fetchProperties, fetchAssociates]);
 
   const addLead = async (newLead: Omit<Lead, "id" | "created_at">) => {
     if (!isSupabaseConfigured()) {
@@ -185,6 +231,7 @@ export function useCrmData() {
   return {
     leads,
     properties,
+    associates,
     loading,
     error,
     addLead,
