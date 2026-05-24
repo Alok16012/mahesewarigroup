@@ -131,6 +131,8 @@ export default function LeadsPage() {
   const [addOpen, setAddOpen] = useState(false);
   const [assignLead, setAssignLead] = useState<Lead | null>(null);
   const [followupLead, setFollowupLead] = useState<Lead | null>(null);
+  const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
+  const [bulkAssignOpen, setBulkAssignOpen] = useState(false);
 
   const {
     leads, associates, properties, telecallers, loading,
@@ -159,6 +161,30 @@ export default function LeadsPage() {
   const converted = visibleLeads.filter((l) => l.status === "converted").length;
   const conversionRate = totalLeads > 0 ? Math.round((converted / totalLeads) * 100) : 0;
   const dueToday = visibleLeads.filter((l) => l.next_followup_date === today).length;
+
+  const toggleSelect = (id: string) => {
+    setSelectedLeads((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedLeads.size === filtered.length && filtered.length > 0) {
+      setSelectedLeads(new Set());
+    } else {
+      setSelectedLeads(new Set(filtered.map((l) => l.id)));
+    }
+  };
+
+  const handleBulkAssign = async (tcId: string, tcName: string) => {
+    const ids = Array.from(selectedLeads);
+    await Promise.all(ids.map((id) => assignLeadToTelecaller(id, tcId, tcName)));
+    toast.success(`${ids.length} leads assigned to ${tcName}`);
+    setSelectedLeads(new Set());
+    setBulkAssignOpen(false);
+  };
 
   if (loading) {
     return (
@@ -255,6 +281,29 @@ export default function LeadsPage() {
           </div>
         </div>
 
+        {/* Bulk action bar */}
+        {selectedLeads.size > 0 && user?.role === "admin" && (
+          <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl border border-[#6366f1]/30 bg-[#eef2ff]">
+            <input type="checkbox" checked readOnly className="w-4 h-4 accent-[#6366f1]" />
+            <span className="text-sm font-semibold text-[#6366f1]">
+              {selectedLeads.size} lead{selectedLeads.size > 1 ? "s" : ""} selected
+            </span>
+            <div className="h-4 w-px bg-[#6366f1]/20" />
+            <button
+              onClick={() => setBulkAssignOpen(true)}
+              className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-sm font-semibold text-white transition-opacity hover:opacity-90"
+              style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}>
+              <Headphones className="w-3.5 h-3.5" />
+              Bulk Assign Telecaller
+            </button>
+            <button
+              onClick={() => setSelectedLeads(new Set())}
+              className="text-sm text-[#6366f1]/60 hover:text-[#6366f1] transition-colors ml-auto">
+              Clear Selection
+            </button>
+          </div>
+        )}
+
         {/* Tabs */}
         <Tabs defaultValue="kanban">
           <TabsList className="bg-secondary">
@@ -308,6 +357,16 @@ export default function LeadsPage() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-secondary/50">
+                    {user?.role === "admin" && (
+                      <TableHead className="w-10">
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4 accent-[#6366f1] cursor-pointer"
+                          checked={selectedLeads.size === filtered.length && filtered.length > 0}
+                          onChange={toggleSelectAll}
+                        />
+                      </TableHead>
+                    )}
                     {["Lead", "Contact", "Property", "Budget", "Telecaller", "Status", "Next Followup", "Actions"].map((h) => (
                       <TableHead key={h} className="font-semibold text-[#1e1b4b] text-xs">{h}</TableHead>
                     ))}
@@ -316,10 +375,21 @@ export default function LeadsPage() {
                 <TableBody>
                   {filtered.map((lead) => {
                     const stage = stages.find((s) => s.key === lead.status)!;
-                    const dueToday = lead.next_followup_date === today;
+                    const isLeadDueToday = lead.next_followup_date === today;
                     const overdue = lead.next_followup_date && lead.next_followup_date < today;
+                    const isSelected = selectedLeads.has(lead.id);
                     return (
-                      <TableRow key={lead.id} className="hover:bg-secondary/30 transition-colors">
+                      <TableRow key={lead.id} className={`hover:bg-secondary/30 transition-colors ${isSelected ? "bg-[#eef2ff]/60" : ""}`}>
+                        {user?.role === "admin" && (
+                          <TableCell className="w-10">
+                            <input
+                              type="checkbox"
+                              className="w-4 h-4 accent-[#6366f1] cursor-pointer"
+                              checked={isSelected}
+                              onChange={() => toggleSelect(lead.id)}
+                            />
+                          </TableCell>
+                        )}
                         <TableCell>
                           <div className="flex items-center gap-2.5">
                             <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
@@ -361,9 +431,9 @@ export default function LeadsPage() {
                         </TableCell>
                         <TableCell>
                           {lead.next_followup_date ? (
-                            <span className={`text-xs font-medium ${overdue ? "text-red-600" : dueToday ? "text-amber-600" : "text-muted-foreground"}`}>
+                            <span className={`text-xs font-medium ${overdue ? "text-red-600" : isLeadDueToday ? "text-amber-600" : "text-muted-foreground"}`}>
                               {lead.next_followup_date}
-                              {dueToday && " ⚡"}
+                              {isLeadDueToday && " ⚡"}
                               {overdue && " ⚠"}
                             </span>
                           ) : (
@@ -431,6 +501,16 @@ export default function LeadsPage() {
             await addFollowup({ ...data, lead_id: followupLead.id, lead_name: followupLead.name });
             setFollowupLead(null);
           }}
+        />
+      )}
+
+      {/* Bulk Assign Modal */}
+      {bulkAssignOpen && (
+        <BulkAssignModal
+          count={selectedLeads.size}
+          telecallers={telecallers}
+          onClose={() => setBulkAssignOpen(false)}
+          onAssign={handleBulkAssign}
         />
       )}
     </div>
@@ -736,6 +816,81 @@ function AddFollowupModal({ lead, telecallers, onClose, onSubmit }: {
               <Button type="submit" disabled={submitting} className="flex-1"
                 style={{ background: "linear-gradient(135deg, #16a34a, #22c55e)", color: "white" }}>
                 {submitting ? "Saving..." : "Save Follow-up"}
+              </Button>
+            </div>
+          </form>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Bulk Assign Modal ─────────────────────────────────────────────────────────
+
+function BulkAssignModal({ count, telecallers, onClose, onAssign }: {
+  count: number;
+  telecallers: any[];
+  onClose: () => void;
+  onAssign: (tcId: string, tcName: string) => Promise<void>;
+}) {
+  const [selected, setSelected] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const active = telecallers.filter((t) => t.status === "active");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selected) { toast.error("Please select a telecaller"); return; }
+    const tc = telecallers.find((t) => t.id === selected);
+    if (!tc) return;
+    setSubmitting(true);
+    await onAssign(tc.id, tc.full_name);
+    setSubmitting(false);
+  };
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent size="default">
+        <DialogHeader>
+          <DialogTitle>Bulk Assign Telecaller</DialogTitle>
+        </DialogHeader>
+        <div className="px-6 py-5">
+          <div className="flex items-center gap-2 mb-4 p-3 rounded-xl bg-[#eef2ff]">
+            <Headphones className="w-4 h-4 text-[#6366f1]" />
+            <p className="text-sm font-semibold text-[#6366f1]">
+              {count} lead{count > 1 ? "s" : ""} will be assigned
+            </p>
+          </div>
+          <form className="space-y-4" onSubmit={handleSubmit}>
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium text-[#1e1b4b]">Select Telecaller *</Label>
+              <Select value={selected} onValueChange={(v) => setSelected(v ?? "")}>
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder="Choose telecaller..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {active.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      <div className="flex items-center gap-2">
+                        <div className="w-5 h-5 rounded-full bg-[#eef2ff] flex items-center justify-center text-[10px] font-bold text-[#6366f1]">
+                          {t.full_name.charAt(0)}
+                        </div>
+                        {t.full_name}
+                        {t.phone && <span className="text-xs text-muted-foreground">· {t.phone}</span>}
+                      </div>
+                    </SelectItem>
+                  ))}
+                  {active.length === 0 && (
+                    <SelectItem value="_none" disabled>No active telecallers</SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">All {count} selected leads will be assigned to this telecaller.</p>
+            </div>
+            <div className="flex gap-3 pt-2">
+              <Button variant="outline" type="button" className="flex-1" onClick={onClose}>Cancel</Button>
+              <Button type="submit" disabled={submitting || !selected} className="flex-1"
+                style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)", color: "white" }}>
+                {submitting ? `Assigning ${count}...` : `Assign ${count} Leads`}
               </Button>
             </div>
           </form>
