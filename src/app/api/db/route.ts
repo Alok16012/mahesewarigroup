@@ -1,11 +1,12 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 
-// Server-side admin client — bypasses RLS entirely
-const admin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+function getAdminClient() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
 type Body =
   | { op: "insert"; table: string; data: Record<string, unknown> }
@@ -14,6 +15,7 @@ type Body =
 
 export async function POST(req: NextRequest) {
   try {
+    const admin = getAdminClient();
     const body: Body = await req.json();
 
     if (body.op === "insert") {
