@@ -11,19 +11,43 @@ import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
+const ADMIN_EMAIL = "admin@masheuri.com";
+const ADMIN_PASSWORD = "admin123";
+const ASSOCIATES_KEY = "mg_associates_v2";
+
+// Hardcoded seed credentials — always available even if localStorage is empty/stale
+const SEED_CREDS: Array<{ username: string; password: string; name: string; level: number }> = [
+  { username: "alok.kumar",    password: "Alok@1234",  name: "Alok Kumar",    level: 1 },
+  { username: "priya.mehta",   password: "Priya@1234", name: "Priya Mehta",   level: 1 },
+  { username: "ram.singh",     password: "Ram@1234",   name: "Ram Singh",     level: 2 },
+  { username: "subham.gupta",  password: "Sub@1234",   name: "Subham Gupta",  level: 2 },
+  { username: "vikram.joshi",  password: "Vik@1234",   name: "Vikram Joshi",  level: 2 },
+  { username: "amar.patel",    password: "Amar@1234",  name: "Amar Patel",    level: 3 },
+  { username: "geeta.sharma",  password: "Geet@1234",  name: "Geeta Sharma",  level: 3 },
+  { username: "deepika.rao",   password: "Deep@1234",  name: "Deepika Rao",   level: 3 },
+  { username: "sneha.reddy",   password: "Sneh@1234",  name: "Sneha Reddy",   level: 3 },
+];
+
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
-  const [email, setEmail] = useState("admin@masheuri.com");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState(ADMIN_EMAIL);
+  const [password, setPassword] = useState(ADMIN_PASSWORD);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const handleDummyLogin = (role: string) => {
+  const handleDummyLogin = (
+    role: string,
+    associateData?: { id: string; name: string; referralCode: string; username: string }
+  ) => {
     setLoading(true);
-    toast.success(`Entering as ${role} (Demo Mode)`);
-    // Store dummy role for experimental features
+    toast.success(`Welcome${associateData ? ", " + associateData.name : ""}! (Demo Mode)`);
     if (typeof window !== "undefined") {
       localStorage.setItem("dummy_role", role.toLowerCase());
+      if (associateData) {
+        localStorage.setItem("dummy_associate", JSON.stringify(associateData));
+      } else {
+        localStorage.removeItem("dummy_associate");
+      }
     }
     setTimeout(() => {
       router.push("/dashboard");
@@ -35,34 +59,65 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
 
-    if (email === "admin@masheuri.com" && password === "admin123") {
+    // 1. Admin hardcoded credentials
+    if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
       return handleDummyLogin("Admin");
     }
 
+    // 2. Username-based login — check localStorage then seed fallback
+    const isUsername = !email.includes("@");
+    if (isUsername) {
+      // Build full associate list from localStorage (has id, referralCode etc.)
+      let allAssociates: Array<{ id: string; name: string; level: number; referralCode: string; username?: string; password?: string }> = [];
+      try {
+        const stored = localStorage.getItem(ASSOCIATES_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed.length > 0 && parsed[0].username) allAssociates = parsed;
+        }
+      } catch {}
+      // Fall back to seed if no localStorage data with credentials
+      if (allAssociates.length === 0) {
+        allAssociates = SEED_CREDS.map((s, i) => ({
+          id: `A-${String(i + 1).padStart(3, "0")}`,
+          name: s.name,
+          level: s.level,
+          referralCode: `MG-${s.username.split(".").map(w => w[0].toUpperCase()).join("")}-${String(i + 1).padStart(3, "0")}`,
+          username: s.username,
+          password: s.password,
+        }));
+      }
+      const match = allAssociates.find((a) => a.username === email && a.password === password);
+      if (match) {
+        const role = match.level === 1 ? "associate" : "sub-associate";
+        return handleDummyLogin(role, {
+          id: match.id,
+          name: match.name,
+          referralCode: match.referralCode,
+          username: match.username!,
+        });
+      }
+      toast.error("Invalid credentials", { description: "Username or password is incorrect." });
+      setLoading(false);
+      return;
+    }
+
+    // 3. Supabase auth (email-based)
     if (!isSupabaseConfigured()) {
-      toast.info("Supabase not configured. Entering Demo Mode.", {
-        description: "You're viewing the app with mock data. Real changes won't be saved to a database."
-      });
-      setTimeout(() => {
-        router.push("/dashboard");
-        setLoading(false);
-      }, 1000);
+      toast.info("Supabase not configured — entering Demo Mode.");
+      setTimeout(() => { router.push("/dashboard"); setLoading(false); }, 800);
       return;
     }
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
         toast.error("Login failed", { description: error.message });
       } else {
         toast.success("Welcome back!", { description: "Preparing your dashboard..." });
         router.push("/dashboard");
       }
-    } catch (err) {
+    } catch {
       toast.error("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
@@ -149,23 +204,23 @@ export default function LoginPage() {
             <p className="text-gray-400 text-sm">Sign in to your account to continue</p>
           </div>
 
-          <div className="mb-6 p-3 rounded-xl bg-indigo-50 border border-indigo-100 flex items-start gap-3">
-            <div className="w-5 h-5 rounded-full bg-indigo-200 flex items-center justify-center flex-shrink-0 mt-0.5">
-              <span className="text-[10px] font-bold text-indigo-700">i</span>
+          <div className="mb-6 p-3 rounded-xl bg-indigo-50 border border-indigo-100 space-y-1.5">
+            <p className="text-[11px] font-bold text-indigo-700 uppercase tracking-wide">Demo Credentials</p>
+            <div className="flex flex-col gap-1 text-[11px] text-indigo-800">
+              <span><span className="font-semibold">Admin:</span> admin@masheuri.com · admin123</span>
+              <span><span className="font-semibold">Associate:</span> username from Associates table · their password</span>
             </div>
-            <p className="text-[11px] text-indigo-800 leading-relaxed font-medium">
-              Aap dummy buttons se kisi bhi role mein login kar sakte hain testing ke liye.
-            </p>
           </div>
 
           <form className="space-y-4" onSubmit={handleLogin}>
             <div className="space-y-1.5">
-              <Label htmlFor="email" className="text-sm font-semibold text-[#1e1b4b]">Email Address</Label>
+              <Label htmlFor="email" className="text-sm font-semibold text-[#1e1b4b]">Email or Username</Label>
               <div className="relative">
                 <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" />
                 <Input
                   id="email"
-                  type="email"
+                  type="text"
+                  placeholder="admin@masheuri.com or alok.kumar"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-10 h-11 rounded-xl border-gray-200 bg-gray-50 text-sm focus:bg-white focus:border-[#6366f1] transition-colors"
@@ -205,17 +260,9 @@ export default function LoginPage() {
             </Button>
 
             <div className="relative my-4">
-              <div className="mb-6 p-3 rounded-xl bg-indigo-50 border border-indigo-100 flex items-start gap-3">
-                <div className="w-5 h-5 rounded-full bg-indigo-200 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <span className="text-[10px] font-bold text-indigo-700">i</span>
-                </div>
-                <p className="text-[11px] text-indigo-800 leading-relaxed font-medium">
-                  Aap dummy buttons se kisi bhi role mein login kar sakte hain testing ke liye.
-                </p>
-              </div>
               <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-100" /></div>
               <div className="relative flex justify-center">
-                <span className="px-3 bg-white text-xs text-gray-400">Dummy Login for Testing</span>
+                <span className="px-3 bg-white text-xs text-gray-400">Quick Login (Demo)</span>
               </div>
             </div>
 

@@ -7,8 +7,10 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { XIcon } from "lucide-react"
 
-function Dialog({ ...props }: DialogPrimitive.Root.Props) {
-  return <DialogPrimitive.Root data-slot="dialog" {...props} />
+// disablePointerDismissal=true globally so dialogs never close when
+// clicking inside Select/Popover portals or backspacing in inputs
+function Dialog({ disablePointerDismissal = true, ...props }: DialogPrimitive.Root.Props) {
+  return <DialogPrimitive.Root data-slot="dialog" disablePointerDismissal={disablePointerDismissal} {...props} />
 }
 
 function DialogTrigger({ ...props }: DialogPrimitive.Trigger.Props) {
@@ -31,7 +33,7 @@ function DialogOverlay({
     <DialogPrimitive.Backdrop
       data-slot="dialog-overlay"
       className={cn(
-        "fixed inset-0 isolate z-50 bg-black/10 duration-100 supports-backdrop-filter:backdrop-blur-xs data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
+        "fixed inset-0 isolate z-50 bg-black/50 backdrop-blur-sm duration-150 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0",
         className
       )}
       {...props}
@@ -47,25 +49,38 @@ function DialogContent({
   ...props
 }: DialogPrimitive.Popup.Props & {
   showCloseButton?: boolean
-  size?: "default" | "lg" | "xl" | "full" | "property"
+  size?: "sm" | "default" | "lg" | "xl" | "full" | "property"
 }) {
   const sizeClasses = {
-    default: "sm:max-w-sm max-w-[calc(100%-2rem)]",
-    lg: "sm:max-w-lg max-w-[calc(100%-2rem)]",
-    xl: "sm:max-w-xl md:max-w-2xl max-w-[calc(100%-2rem)]",
-    full: "max-w-[95vw] max-h-[95vh]",
-    property: "max-w-3xl sm:max-w-4xl md:max-w-5xl lg:max-w-6xl max-h-[85vh]"
+    // sm — confirm dialogs, small alerts
+    sm: "w-full max-w-[calc(100%-2rem)] sm:max-w-sm",
+    // default — medium single-section forms
+    default: "w-full max-w-[calc(100%-2rem)] sm:max-w-md",
+    // lg — multi-field forms (leads, plot)
+    lg: "w-full max-w-[calc(100%-2rem)] sm:max-w-lg",
+    // xl — rich multi-section forms (add/edit property, add associate)
+    xl: "w-full max-w-[calc(100%-2rem)] sm:max-w-xl md:max-w-2xl",
+    // full — take up most of screen
+    full: "w-full max-w-[95vw] max-h-[95vh]",
+    // property — large detail view
+    property: "w-full max-w-[calc(100%-2rem)] sm:max-w-4xl md:max-w-5xl lg:max-w-6xl",
   }
 
   return (
     <DialogPortal>
-      <DialogOverlay className="bg-black/60 backdrop-blur-sm" />
+      <DialogOverlay />
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid w-full -translate-x-1/2 -translate-y-1/2 gap-0 rounded-2xl lg:rounded-3xl bg-popover text-sm text-popover-foreground shadow-2xl duration-100 outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 overflow-hidden",
+          // base layout
+          "fixed top-1/2 left-1/2 z-50 -translate-x-1/2 -translate-y-1/2",
+          // height — never taller than viewport, always scrollable
+          "max-h-[calc(100vh-2rem)] overflow-y-auto",
+          // appearance
+          "rounded-2xl bg-white text-sm text-popover-foreground shadow-2xl outline-none",
+          // animation
+          "duration-150 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           sizeClasses[size],
-          "overflow-y-auto",
           className
         )}
         {...props}
@@ -77,13 +92,12 @@ function DialogContent({
             render={
               <Button
                 variant="ghost"
-                className="absolute top-2 right-2 z-50"
+                className="absolute top-3 right-3 z-50 rounded-full w-8 h-8 p-0 bg-gray-100 hover:bg-gray-200 text-gray-500"
                 size="icon-sm"
               />
             }
           >
-            <XIcon
-            />
+            <XIcon className="w-4 h-4" />
             <span className="sr-only">Close</span>
           </DialogPrimitive.Close>
         )}
@@ -96,7 +110,17 @@ function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="dialog-header"
-      className={cn("flex flex-col gap-2", className)}
+      className={cn("flex flex-col gap-1.5 px-6 pt-6 pb-0", className)}
+      {...props}
+    />
+  )
+}
+
+function DialogBody({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="dialog-body"
+      className={cn("px-6 py-5", className)}
       {...props}
     />
   )
@@ -114,7 +138,7 @@ function DialogFooter({
     <div
       data-slot="dialog-footer"
       className={cn(
-        "-mx-4 -mb-4 flex flex-col-reverse gap-2 rounded-b-xl border-t bg-muted/50 p-4 sm:flex-row sm:justify-end",
+        "flex flex-col-reverse gap-2 px-6 pb-6 pt-2 sm:flex-row sm:justify-end",
         className
       )}
       {...props}
@@ -134,7 +158,7 @@ function DialogTitle({ className, ...props }: DialogPrimitive.Title.Props) {
     <DialogPrimitive.Title
       data-slot="dialog-title"
       className={cn(
-        "font-heading text-base leading-none font-medium",
+        "text-lg font-bold leading-tight text-[#1e1b4b]",
         className
       )}
       {...props}
@@ -149,10 +173,7 @@ function DialogDescription({
   return (
     <DialogPrimitive.Description
       data-slot="dialog-description"
-      className={cn(
-        "text-sm text-muted-foreground *:[a]:underline *:[a]:underline-offset-3 *:[a]:hover:text-foreground",
-        className
-      )}
+      className={cn("text-sm text-muted-foreground", className)}
       {...props}
     />
   )
@@ -161,12 +182,13 @@ function DialogDescription({
 export {
   Dialog,
   DialogClose,
-  DialogContent,
   DialogDescription,
   DialogFooter,
+  DialogBody,
   DialogHeader,
   DialogOverlay,
   DialogPortal,
   DialogTitle,
   DialogTrigger,
+  DialogContent,
 }

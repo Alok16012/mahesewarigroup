@@ -13,7 +13,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Plus, Search, Filter, MapPin, IndianRupee, LayoutGrid, List, Edit, Trash2, Eye, Building2, Maximize2, Upload, X, Loader2, Image as ImageIcon, Users } from "lucide-react";
 import { useCrmData } from "@/hooks/use-crm-data";
 import { toast } from "sonner";
-import { Property } from "@/types/database";
+import { Property, PlotUnit } from "@/types/database";
+import PlotMap from "@/components/PlotMap";
 import { supabase } from "@/lib/supabase";
 
 const statusConfig: Record<string, { label: string; bg: string; color: string }> = {
@@ -45,7 +46,8 @@ export default function PropertiesPage() {
   const [viewingProperty, setViewingProperty] = useState<Property | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
-  const { properties, associates, loading, addProperty, updateProperty } = useCrmData();
+  const { properties, associates, loading, addProperty, updateProperty, deleteProperty } = useCrmData();
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const filtered = (properties || []).filter((p) => {
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) || p.location.toLowerCase().includes(search.toLowerCase());
@@ -54,7 +56,6 @@ export default function PropertiesPage() {
   });
 
   const handleEdit = (prop: Property) => {
-    console.log("Editing property:", prop);
     setEditingProperty(prop);
     setDialogOpen(true);
   };
@@ -65,9 +66,14 @@ export default function PropertiesPage() {
   };
 
   const handleView = (prop: Property) => {
-    console.log("Viewing property:", prop);
     setViewingProperty(prop);
     setDetailOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteConfirmId) return;
+    await deleteProperty(deleteConfirmId);
+    setDeleteConfirmId(null);
   };
 
   if (loading) {
@@ -96,30 +102,32 @@ export default function PropertiesPage() {
         </div>
       </div>
 
-      {/* Add / Edit Dialog — key forces full remount when switching add↔edit */}
+      {/* Add / Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent size="xl" className="p-4 sm:p-6" showCloseButton={false}>
-          <DialogHeader className="mb-2">
-            <DialogTitle className="text-lg sm:text-xl font-bold text-[#1e1b4b]">
+        <DialogContent size="xl" showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>
               {editingProperty ? "Edit Property" : "Add New Property"}
             </DialogTitle>
           </DialogHeader>
-          <PropertyForm
-            key={editingProperty?.id ?? "new"}
-            initialData={editingProperty}
-            associates={associates}
-            onClose={() => setDialogOpen(false)}
-            onSubmit={async (data) => {
-              if (editingProperty) {
-                await updateProperty(editingProperty.id, data);
-                toast.success("Property updated successfully!");
-              } else {
-                await addProperty(data);
-                toast.success("Property added successfully!");
-              }
-              setDialogOpen(false);
-            }}
-          />
+          <div className="px-6 py-5">
+            <PropertyForm
+              key={editingProperty?.id ?? "new"}
+              initialData={editingProperty}
+              associates={associates}
+              onClose={() => setDialogOpen(false)}
+              onSubmit={async (data) => {
+                if (editingProperty) {
+                  await updateProperty(editingProperty.id, data);
+                  toast.success("Property updated successfully!");
+                } else {
+                  await addProperty(data);
+                  toast.success("Property added successfully!");
+                }
+                setDialogOpen(false);
+              }}
+            />
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -133,6 +141,34 @@ export default function PropertiesPage() {
               onClose={() => setDetailOpen(false)}
             />
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation */}
+      <Dialog open={!!deleteConfirmId} onOpenChange={() => setDeleteConfirmId(null)}>
+        <DialogContent size="sm">
+          <DialogHeader>
+            <DialogTitle>Delete Property?</DialogTitle>
+          </DialogHeader>
+          <div className="px-6 py-4">
+            <p className="text-sm text-gray-500">
+              This will permanently remove the property and all its data. This action cannot be undone.
+            </p>
+            <div className="flex gap-3 mt-5">
+              <button
+                onClick={() => setDeleteConfirmId(null)}
+                className="flex-1 h-10 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                className="flex-1 h-10 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-semibold transition-colors"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 
@@ -199,7 +235,7 @@ export default function PropertiesPage() {
                   <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                     <button onClick={(e) => { e.stopPropagation(); handleView(prop); }} className="w-9 h-9 rounded-xl bg-white shadow-xl flex items-center justify-center text-[#6366f1] hover:scale-110 transition-transform active:scale-95"><Eye className="w-4.5 h-4.5" /></button>
                     <button onClick={(e) => { e.stopPropagation(); handleEdit(prop); }} className="w-9 h-9 rounded-xl bg-white shadow-xl flex items-center justify-center text-[#6366f1] hover:scale-110 transition-transform active:scale-95"><Edit className="w-4.5 h-4.5" /></button>
-                    <button onClick={(e) => { e.stopPropagation(); }} className="w-9 h-9 rounded-xl bg-white shadow-xl flex items-center justify-center text-red-500 hover:scale-110 transition-transform active:scale-95"><Trash2 className="w-4.5 h-4.5" /></button>
+                    <button onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(prop.id); }} className="w-9 h-9 rounded-xl bg-white shadow-xl flex items-center justify-center text-red-500 hover:scale-110 transition-transform active:scale-95"><Trash2 className="w-4.5 h-4.5" /></button>
                   </div>
                 </div>
                 <div className="p-4" onClick={() => handleView(prop)}>
@@ -284,7 +320,7 @@ export default function PropertiesPage() {
                       <div className="flex gap-1 justify-end">
                         <Button onClick={() => handleView(prop)} variant="ghost" size="icon" className="h-9 w-9 text-gray-400 hover:text-[#6366f1] hover:bg-[#ede9fe] rounded-xl transition-all"><Eye className="w-4 h-4" /></Button>
                         <Button onClick={() => handleEdit(prop)} variant="ghost" size="icon" className="h-9 w-9 text-gray-400 hover:text-[#6366f1] hover:bg-[#ede9fe] rounded-xl transition-all"><Edit className="w-4 h-4" /></Button>
-                        <Button variant="ghost" size="icon" className="h-9 w-9 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"><Trash2 className="w-4 h-4" /></Button>
+                        <Button onClick={() => setDeleteConfirmId(prop.id)} variant="ghost" size="icon" className="h-9 w-9 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"><Trash2 className="w-4 h-4" /></Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -498,15 +534,26 @@ function PropertyDetailView({ property, onClose }: { property: Property; onClose
                 <p className="text-sm font-bold text-slate-700 capitalize">{property.type}</p>
               </div>
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                <p className="text-[9px] font-semibold text-slate-400 uppercase mb-0.5">Area</p>
-                <p className="text-sm font-bold text-slate-700">500 sq.ft</p>
+                <p className="text-[9px] font-semibold text-slate-400 uppercase mb-0.5">Total Plots</p>
+                <p className="text-sm font-bold text-slate-700">{plotUnits.length > 0 ? plotUnits.length : "—"}</p>
               </div>
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                <p className="text-[9px] font-semibold text-slate-400 uppercase mb-0.5">Facing</p>
-                <p className="text-sm font-bold text-slate-700">East</p>
+                <p className="text-[9px] font-semibold text-slate-400 uppercase mb-0.5">Available</p>
+                <p className="text-sm font-bold text-green-600">{availableCount}</p>
               </div>
             </div>
           </div>
+
+          {/* Plot Map */}
+          {property.type === "plot" && (
+            <div className="space-y-3">
+              <h4 className="font-bold text-[#1e1b4b] text-sm flex items-center gap-2">
+                <div className="w-1.5 h-5 rounded-full bg-[#22c55e]" />
+                Plot Map
+              </h4>
+              <PlotMap propertyId={property.id} plots={plotUnits} />
+            </div>
+          )}
         </div>
 
         {/* Action Buttons */}
@@ -576,22 +623,18 @@ function PropertyForm({ initialData, onClose, onSubmit, associates }: { initialD
     }
   };
 
-  const uploadFile = async (file: File) => {
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
-    const filePath = `property-media/${fileName}`;
+  const uploadFile = async (file: File): Promise<string> => {
+    const formData = new FormData();
+    formData.append("file", file);
 
-    const { data, error } = await supabase.storage
-      .from('properties')
-      .upload(filePath, file);
+    const res = await fetch("/api/upload", {
+      method: "POST",
+      body: formData,
+    });
 
-    if (error) throw error;
-
-    const { data: { publicUrl } } = supabase.storage
-      .from('properties')
-      .getPublicUrl(filePath);
-
-    return publicUrl;
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || "Upload failed");
+    return json.url as string;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -624,7 +667,9 @@ function PropertyForm({ initialData, onClose, onSubmit, associates }: { initialD
       await onSubmit({
         ...formData,
         images: finalImages,
-        map_image: finalMapImage
+        map_image: finalMapImage || null,
+        associate_id: formData.associate_id || null,
+        associate_name: formData.associate_name || null,
       });
     } catch (error: any) {
       toast.error("Failed to upload images: " + error.message);
@@ -707,7 +752,7 @@ return (
               setFormData({
                 ...formData, 
                 associate_id: v === "none" ? "" : v,
-                associate_name: selected?.name || ""
+                associate_name: selected?.full_name || ""
               });
             }}
           >
@@ -718,7 +763,7 @@ return (
               <SelectItem value="none">No Associate</SelectItem>
               {associates.map((a) => (
                 <SelectItem key={a.id} value={a.id}>
-                  {a.name} ({a.referralCode})
+                  {a.full_name} ({a.referral_code})
                 </SelectItem>
               ))}
             </SelectContent>

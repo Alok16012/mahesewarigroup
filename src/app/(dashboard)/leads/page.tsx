@@ -20,8 +20,10 @@ import {
   MoreHorizontal, Upload, Filter, User
 } from "lucide-react";
 import { useCrmData } from "@/hooks/use-crm-data";
+import { useCurrentUser, getDownlineIds } from "@/hooks/use-auth";
 import { toast } from "sonner";
 import { Lead, LeadStatus } from "@/types/database";
+import { useMemo } from "react";
 
 
 const stages: { key: LeadStatus; label: string; color: string; textColor: string; borderColor: string }[] = [
@@ -90,17 +92,26 @@ function LeadCard({ lead, stage, onStatusChange }: { lead: Lead; stage: typeof s
 export default function LeadsPage() {
   const [search, setSearch] = useState("");
   const [addOpen, setAddOpen] = useState(false);
-  const { leads, loading, addLead, updateLeadStatus } = useCrmData();
+  const { leads, associates, properties, loading, addLead, updateLeadStatus, deleteLead } = useCrmData();
+  const { user } = useCurrentUser();
 
-  const filtered = leads.filter(
+  // Role-based lead visibility
+  const visibleLeads = useMemo(() => {
+    if (!user || user.role === "admin") return leads;
+    const downlineIds = getDownlineIds(user.referral_code, associates);
+    const allowedIds = new Set([user.id, ...downlineIds]);
+    return leads.filter((l) => allowedIds.has(l.associate_id || ""));
+  }, [leads, associates, user]);
+
+  const filtered = visibleLeads.filter(
     (l) =>
       l.name.toLowerCase().includes(search.toLowerCase()) ||
       l.phone.includes(search) ||
       (l.property_name && l.property_name.toLowerCase().includes(search.toLowerCase()))
   );
 
-  const totalLeads = leads.length;
-  const converted = leads.filter((l) => l.status === "converted").length;
+  const totalLeads = visibleLeads.length;
+  const converted = visibleLeads.filter((l) => l.status === "converted").length;
   const conversionRate = totalLeads > 0 ? Math.round((converted / totalLeads) * 100) : 0;
 
   if (loading) {
@@ -118,8 +129,8 @@ export default function LeadsPage() {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
           {[
             { label: "Total Leads", value: totalLeads, color: "#6366f1", bg: "#eef2ff" },
-            { label: "New", value: leads.filter((l) => l.status === "new").length, color: "#6366f1", bg: "#eef2ff" },
-            { label: "In Progress", value: leads.filter((l) => ["contacted","site_visit","negotiation"].includes(l.status)).length, color: "#f59e0b", bg: "#fef3c7" },
+            { label: "New", value: visibleLeads.filter((l) => l.status === "new").length, color: "#6366f1", bg: "#eef2ff" },
+            { label: "In Progress", value: visibleLeads.filter((l) => ["contacted","site_visit","negotiation"].includes(l.status)).length, color: "#f59e0b", bg: "#fef3c7" },
             { label: "Converted", value: converted, color: "#22c55e", bg: "#dcfce7" },
             { label: "Conversion Rate", value: `${conversionRate}%`, color: "#D4AF37", bg: "#fefce8" },
           ].map((s) => (
@@ -152,18 +163,21 @@ export default function LeadsPage() {
                 <Plus className="w-4 h-4" />
                 Add Lead
               </DialogTrigger>
-              <DialogContent className="max-w-lg">
+              <DialogContent size="lg">
                 <DialogHeader>
-                  <DialogTitle className="text-[#1e1b4b]">Add New Lead</DialogTitle>
+                  <DialogTitle>Add New Lead</DialogTitle>
                 </DialogHeader>
-                <AddLeadForm 
-                  onClose={() => setAddOpen(false)} 
-                  onSubmit={async (data) => {
-                    await addLead(data);
-                    setAddOpen(false);
-                    toast.success("Lead added successfully!");
-                  }} 
-                />
+                <div className="px-6 py-5">
+                  <AddLeadForm
+                    currentUser={user}
+                    properties={properties}
+                    onClose={() => setAddOpen(false)}
+                    onSubmit={async (data) => {
+                      await addLead(data);
+                      setAddOpen(false);
+                    }}
+                  />
+                </div>
               </DialogContent>
             </Dialog>
           </div>
@@ -289,18 +303,23 @@ export default function LeadsPage() {
   );
 }
 
-function AddLeadForm({ onClose, onSubmit }: { onClose: () => void; onSubmit: (data: any) => Promise<void> }) {
+function AddLeadForm({ onClose, onSubmit, currentUser, properties }: {
+  onClose: () => void;
+  onSubmit: (data: any) => Promise<void>;
+  currentUser: { id: string; full_name: string; role: string } | null;
+  properties: { id: string; name: string }[];
+}) {
   const [formData, setFormData] = useState({
     name: "",
     phone: "",
     email: "",
-    property_name: "Royal Meadows",
-    budget: 9000000,
+    property_name: "",
+    budget: 5000000,
     source: "Website",
     status: "new" as any,
     notes: "",
-    associate_id: "A-001",
-    associate_name: "Rahul Sharma"
+    associate_id: currentUser?.id || "",
+    associate_name: currentUser?.full_name || "Admin",
   });
 
   const [submitting, setSubmitting] = useState(false);
@@ -317,7 +336,7 @@ function AddLeadForm({ onClose, onSubmit }: { onClose: () => void; onSubmit: (da
   };
 
   return (
-    <form className="space-y-4 pt-2" onSubmit={handleSumbit}>
+    <form className="space-y-4" onSubmit={handleSumbit}>
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
           <Label className="text-sm font-medium text-[#1e1b4b]">Buyer Name *</Label>
@@ -365,9 +384,10 @@ function AddLeadForm({ onClose, onSubmit }: { onClose: () => void; onSubmit: (da
           <Select value={formData.property_name} onValueChange={(v) => setFormData({...formData, property_name: v || ""})}>
             <SelectTrigger className="h-10"><SelectValue placeholder="Select property" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="Royal Meadows">Royal Meadows</SelectItem>
-              <SelectItem value="Silver Oak">Silver Oak</SelectItem>
-              <SelectItem value="Palm Grove">Palm Grove</SelectItem>
+              {properties.map((p) => (
+                <SelectItem key={p.id} value={p.name}>{p.name}</SelectItem>
+              ))}
+              {properties.length === 0 && <SelectItem value="Other">Other</SelectItem>}
             </SelectContent>
           </Select>
         </div>

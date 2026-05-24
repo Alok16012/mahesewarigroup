@@ -7,82 +7,37 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
-} from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   TrendingUp, Plus, Search, CheckCircle2, Clock, XCircle,
-  IndianRupee, Users, FileText, ChevronDown, ChevronUp
+  IndianRupee, Users, ChevronDown, ChevronUp,
 } from "lucide-react";
-
-const sales = [
-  {
-    id: "SL-2024-091", property: "Royal Meadows - Plot A-204", associate: "Rahul Sharma",
-    buyerName: "Suresh Gupta", buyerPhone: "+91 98001 23456",
-    amount: 8500000, date: "2024-04-08", status: "approved",
-    commissions: [
-      { associate: "Rahul Sharma", role: "Seller (L0)", pct: 4, amount: 340000, status: "pending" },
-      { associate: "Admin", role: "Upline (L1)", pct: 1.5, amount: 127500, status: "pending" },
-    ],
-  },
-  {
-    id: "SL-2024-090", property: "Silver Oak - Plot C-88", associate: "Priya Mehta",
-    buyerName: "Ritu Agarwal", buyerPhone: "+91 97002 34567",
-    amount: 12000000, date: "2024-04-06", status: "pending",
-    commissions: [
-      { associate: "Priya Mehta", role: "Seller (L0)", pct: 4, amount: 480000, status: "pending" },
-      { associate: "Admin", role: "Upline (L1)", pct: 1.5, amount: 180000, status: "pending" },
-    ],
-  },
-  {
-    id: "SL-2024-089", property: "Green Valley - Villa B-12", associate: "Amit Kumar",
-    buyerName: "Manoj Tiwari", buyerPhone: "+91 96003 45678",
-    amount: 22000000, date: "2024-04-02", status: "approved",
-    commissions: [
-      { associate: "Amit Kumar", role: "Seller (L0)", pct: 4, amount: 880000, status: "paid" },
-      { associate: "Rahul Sharma", role: "Upline (L1)", pct: 1.5, amount: 330000, status: "paid" },
-      { associate: "Admin", role: "Upline (L2)", pct: 0.5, amount: 110000, status: "paid" },
-    ],
-  },
-  {
-    id: "SL-2024-088", property: "Palm Grove - Plot D-41", associate: "Sneha Reddy",
-    buyerName: "Kavita Sharma", buyerPhone: "+91 95004 56789",
-    amount: 5500000, date: "2024-03-28", status: "rejected",
-    commissions: [],
-  },
-  {
-    id: "SL-2024-087", property: "Lotus Park - Plot E-19", associate: "Vikram Patel",
-    buyerName: "Ajay Nair", buyerPhone: "+91 94005 67890",
-    amount: 7200000, date: "2024-03-22", status: "approved",
-    commissions: [
-      { associate: "Vikram Patel", role: "Seller (L0)", pct: 4, amount: 288000, status: "paid" },
-      { associate: "Rahul Sharma", role: "Upline (L1)", pct: 1.5, amount: 108000, status: "paid" },
-    ],
-  },
-];
+import { useCrmData, SaleRecord } from "@/hooks/use-crm-data";
+import { toast } from "sonner";
 
 const statusConfig: Record<string, { label: string; bg: string; color: string; icon: React.ElementType }> = {
-  pending: { label: "Pending", bg: "#fef3c7", color: "#92400e", icon: Clock },
+  pending:  { label: "Pending",  bg: "#fef3c7", color: "#92400e", icon: Clock },
   approved: { label: "Approved", bg: "#dcfce7", color: "#166534", icon: CheckCircle2 },
   rejected: { label: "Rejected", bg: "#fee2e2", color: "#991b1b", icon: XCircle },
-};
-
-const commStatusConfig: Record<string, { bg: string; color: string }> = {
-  pending: { bg: "#fef3c7", color: "#92400e" },
-  paid: { bg: "#dcfce7", color: "#166534" },
 };
 
 const formatINR = (v: number) =>
   v >= 10000000 ? `₹${(v / 10000000).toFixed(2)} Cr` : `₹${(v / 100000).toFixed(2)}L`;
 
-function SaleRow({ sale }: { sale: typeof sales[0] }) {
+function SaleRow({ sale, onApprove, onReject }: {
+  sale: SaleRecord;
+  onApprove: (id: string) => void;
+  onReject: (id: string) => void;
+}) {
   const [expanded, setExpanded] = useState(false);
   const sc = statusConfig[sale.status];
   const Icon = sc.icon;
+
+  const sellerComm = sale.sale_amount * 0.04;
+  const l1Comm = sale.sale_amount * 0.015;
+  const l2Comm = sale.sale_amount * 0.005;
 
   return (
     <>
@@ -91,27 +46,25 @@ function SaleRow({ sale }: { sale: typeof sales[0] }) {
         onClick={() => setExpanded(!expanded)}
       >
         <TableCell>
-          <div className="flex items-center gap-1.5">
-            <code className="text-xs font-mono bg-secondary px-2 py-0.5 rounded text-[#1e1b4b]">
-              {sale.id}
-            </code>
-          </div>
+          <code className="text-xs font-mono bg-secondary px-2 py-0.5 rounded text-[#1e1b4b]">
+            {sale.id.length > 15 ? sale.id.substring(0, 15) + "…" : sale.id}
+          </code>
         </TableCell>
         <TableCell>
           <div>
-            <p className="font-medium text-[#1e1b4b] text-sm">{sale.property}</p>
-            <p className="text-xs text-muted-foreground">{sale.date}</p>
+            <p className="font-medium text-[#1e1b4b] text-sm">{sale.property_name}</p>
+            <p className="text-xs text-muted-foreground">{sale.sale_date || sale.created_at?.split("T")[0]}</p>
           </div>
         </TableCell>
-        <TableCell className="text-sm text-muted-foreground">{sale.associate}</TableCell>
+        <TableCell className="text-sm text-muted-foreground">{sale.associate_name || "—"}</TableCell>
         <TableCell>
           <div>
-            <p className="text-sm font-medium text-[#1e1b4b]">{sale.buyerName}</p>
-            <p className="text-xs text-muted-foreground">{sale.buyerPhone}</p>
+            <p className="text-sm font-medium text-[#1e1b4b]">{sale.buyer_name}</p>
+            <p className="text-xs text-muted-foreground">{sale.buyer_phone || ""}</p>
           </div>
         </TableCell>
         <TableCell>
-          <span className="font-bold text-[#1e1b4b]">{formatINR(sale.amount)}</span>
+          <span className="font-bold text-[#1e1b4b]">{formatINR(sale.sale_amount)}</span>
         </TableCell>
         <TableCell>
           <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg w-fit" style={{ background: sc.bg }}>
@@ -125,52 +78,42 @@ function SaleRow({ sale }: { sale: typeof sales[0] }) {
               <>
                 <Button size="sm" className="h-7 text-xs px-2.5"
                   style={{ background: "#22c55e", color: "white" }}
-                  onClick={(e) => e.stopPropagation()}>
+                  onClick={(e) => { e.stopPropagation(); onApprove(sale.id); }}>
                   Approve
                 </Button>
                 <Button size="sm" variant="outline" className="h-7 text-xs px-2.5 text-red-500 border-red-200"
-                  onClick={(e) => e.stopPropagation()}>
+                  onClick={(e) => { e.stopPropagation(); onReject(sale.id); }}>
                   Reject
                 </Button>
               </>
             )}
-            {expanded ? (
-              <ChevronUp className="w-4 h-4 text-muted-foreground ml-1" />
-            ) : (
-              <ChevronDown className="w-4 h-4 text-muted-foreground ml-1" />
-            )}
+            {expanded ? <ChevronUp className="w-4 h-4 text-muted-foreground ml-1" /> : <ChevronDown className="w-4 h-4 text-muted-foreground ml-1" />}
           </div>
         </TableCell>
       </TableRow>
 
-      {/* Expanded Commission Detail */}
-      {expanded && sale.commissions.length > 0 && (
+      {expanded && (
         <TableRow>
           <TableCell colSpan={7} className="bg-secondary/20 p-0">
             <div className="p-4">
               <p className="text-xs font-semibold text-[#1e1b4b] mb-3 flex items-center gap-2">
                 <IndianRupee className="w-3.5 h-3.5 text-[#D4AF37]" />
-                Commission Breakdown — Sale Value: {formatINR(sale.amount)}
+                Commission Breakdown — Sale Value: {formatINR(sale.sale_amount)}
               </p>
               <div className="grid grid-cols-3 gap-3">
-                {sale.commissions.map((c, i) => {
-                  const cs = commStatusConfig[c.status];
-                  return (
-                    <div key={i} className="bg-white rounded-xl p-3 border border-border">
-                      <div className="flex items-center justify-between mb-1">
-                        <p className="text-sm font-semibold text-[#1e1b4b]">{c.associate}</p>
-                        <Badge className="text-xs" style={{ background: cs.bg, color: cs.color }}>
-                          {c.status}
-                        </Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground">{c.role}</p>
-                      <div className="flex items-center justify-between mt-2">
-                        <span className="text-xs text-muted-foreground">{c.pct}% of sale</span>
-                        <span className="font-bold text-[#1e1b4b]">₹{c.amount.toLocaleString("en-IN")}</span>
-                      </div>
+                {[
+                  { role: `${sale.associate_name || "Seller"} (L0 Seller)`, pct: 4, amount: sellerComm },
+                  { role: "Referrer (L1 Upline)", pct: 1.5, amount: l1Comm },
+                  { role: "L2 Upline", pct: 0.5, amount: l2Comm },
+                ].map((c) => (
+                  <div key={c.role} className="bg-white rounded-xl p-3 border border-border">
+                    <p className="text-sm font-semibold text-[#1e1b4b] mb-1 truncate">{c.role}</p>
+                    <div className="flex items-center justify-between mt-2">
+                      <span className="text-xs text-muted-foreground">{c.pct}% of sale</span>
+                      <span className="font-bold text-[#1e1b4b]">₹{c.amount.toLocaleString("en-IN")}</span>
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
               </div>
             </div>
           </TableCell>
@@ -181,32 +124,48 @@ function SaleRow({ sale }: { sale: typeof sales[0] }) {
 }
 
 export default function SalesPage() {
+  const { sales, properties, loading, addSale, updateSaleStatus, usingMockData } = useCrmData();
   const [search, setSearch] = useState("");
   const [addOpen, setAddOpen] = useState(false);
 
   const filtered = sales.filter(
     (s) =>
-      s.property.toLowerCase().includes(search.toLowerCase()) ||
-      s.associate.toLowerCase().includes(search.toLowerCase()) ||
+      s.property_name.toLowerCase().includes(search.toLowerCase()) ||
+      (s.associate_name || "").toLowerCase().includes(search.toLowerCase()) ||
       s.id.toLowerCase().includes(search.toLowerCase())
   );
 
-  const totalSales = sales.reduce((a, s) => a + s.amount, 0);
+  const totalSales = sales.reduce((a, s) => a + s.sale_amount, 0);
   const approved = sales.filter((s) => s.status === "approved");
   const pending = sales.filter((s) => s.status === "pending");
+  const totalComm = sales.filter((s) => s.status === "approved").reduce((a, s) => a + s.commission_amount, 0);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#6366f1]" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col min-h-screen">
-      
-
       <div className="flex-1 p-6 space-y-5 animate-fade-in">
+
+        {usingMockData && (
+          <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm bg-amber-50 border border-amber-200 text-amber-700">
+            <Clock className="w-4 h-4 shrink-0" />
+            Demo Mode — Run the SQL schema in Supabase to enable live data
+          </div>
+        )}
+
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {[
             { label: "Total Sales Value", value: formatINR(totalSales), color: "#1e1b4b", bg: "#ede9fe", icon: IndianRupee },
             { label: "Approved Sales", value: approved.length, color: "#22c55e", bg: "#dcfce7", icon: CheckCircle2 },
             { label: "Pending Approval", value: pending.length, color: "#f59e0b", bg: "#fef3c7", icon: Clock },
-            { label: "Total Commission", value: "₹56.6L", color: "#D4AF37", bg: "#fefce8", icon: Users },
+            { label: "Total Commission", value: formatINR(totalComm), color: "#D4AF37", bg: "#fefce8", icon: Users },
           ].map((s) => {
             const Icon = s.icon;
             return (
@@ -224,7 +183,7 @@ export default function SalesPage() {
         </div>
 
         <Tabs defaultValue="sales">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-3">
             <TabsList className="bg-secondary">
               <TabsTrigger value="sales">Sales History</TabsTrigger>
               <TabsTrigger value="commissions">Commission Ledger</TabsTrigger>
@@ -241,45 +200,64 @@ export default function SalesPage() {
                 />
               </div>
               <Dialog open={addOpen} onOpenChange={setAddOpen}>
-                <DialogTrigger
-                  className="inline-flex items-center gap-2 h-10 px-4 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-90 shadow-lg shadow-indigo-200"
+                <DialogTrigger className="inline-flex items-center gap-2 h-10 px-4 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-90 shadow-lg shadow-indigo-200"
                   style={{ background: "#6366f1" }}>
-                  <Plus className="w-4 h-4 mr-2" />
+                  <Plus className="w-4 h-4" />
                   Record Sale
                 </DialogTrigger>
-                <DialogContent className="max-w-lg">
+                <DialogContent size="lg">
                   <DialogHeader>
-                    <DialogTitle className="text-[#1e1b4b]">Record New Sale</DialogTitle>
+                    <DialogTitle>Record New Sale</DialogTitle>
                   </DialogHeader>
-                  <RecordSaleForm onClose={() => setAddOpen(false)} />
+                  <div className="px-6 py-5">
+                    <RecordSaleForm
+                      properties={properties}
+                      onSubmit={async (data) => {
+                        await addSale(data);
+                        setAddOpen(false);
+                      }}
+                      onClose={() => setAddOpen(false)}
+                    />
+                  </div>
                 </DialogContent>
               </Dialog>
             </div>
           </div>
 
-          {/* Sales Tab */}
           <TabsContent value="sales" className="mt-4">
             <Card className="border border-border shadow-sm overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-secondary/50">
-                    {["Sale ID", "Property", "Broker", "Buyer", "Sale Amount", "Status", "Actions"].map((h) => (
+                    {["Sale ID", "Property", "Associate", "Buyer", "Sale Amount", "Status", "Actions"].map((h) => (
                       <TableHead key={h} className="font-semibold text-[#1e1b4b] text-xs">{h}</TableHead>
                     ))}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filtered.map((sale) => (
-                    <SaleRow key={sale.id} sale={sale} />
-                  ))}
+                  {filtered.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center text-muted-foreground py-10">
+                        No sales found
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filtered.map((sale) => (
+                      <SaleRow
+                        key={sale.id}
+                        sale={sale}
+                        onApprove={(id) => updateSaleStatus(id, "approved")}
+                        onReject={(id) => updateSaleStatus(id, "rejected")}
+                      />
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </Card>
           </TabsContent>
 
-          {/* Commission Ledger Tab */}
           <TabsContent value="commissions" className="mt-4">
-            <CommissionLedger />
+            <CommissionLedger sales={sales} />
           </TabsContent>
         </Tabs>
       </div>
@@ -287,26 +265,18 @@ export default function SalesPage() {
   );
 }
 
-function CommissionLedger() {
-  const ledger = [
-    { broker: "Rahul Sharma", saleId: "SL-2024-091", property: "Royal Meadows A-204", role: "L0 Seller", pct: 4, amount: 340000, status: "pending", date: "2024-04-08" },
-    { broker: "Amit Kumar", saleId: "SL-2024-089", property: "Green Valley Villa B-12", role: "L0 Seller", pct: 4, amount: 880000, status: "paid", date: "2024-04-02" },
-    { broker: "Rahul Sharma", saleId: "SL-2024-089", property: "Green Valley Villa B-12", role: "L1 Upline", pct: 1.5, amount: 330000, status: "paid", date: "2024-04-02" },
-    { broker: "Vikram Patel", saleId: "SL-2024-087", property: "Lotus Park E-19", role: "L0 Seller", pct: 4, amount: 288000, status: "paid", date: "2024-03-22" },
-    { broker: "Rahul Sharma", saleId: "SL-2024-087", property: "Lotus Park E-19", role: "L1 Upline", pct: 1.5, amount: 108000, status: "paid", date: "2024-03-22" },
-    { broker: "Priya Mehta", saleId: "SL-2024-090", property: "Silver Oak C-88", role: "L0 Seller", pct: 4, amount: 480000, status: "pending", date: "2024-04-06" },
-  ];
-
-  const totalPaid = ledger.filter((l) => l.status === "paid").reduce((a, l) => a + l.amount, 0);
-  const totalPending = ledger.filter((l) => l.status === "pending").reduce((a, l) => a + l.amount, 0);
+function CommissionLedger({ sales }: { sales: SaleRecord[] }) {
+  const approvedSales = sales.filter((s) => s.status === "approved");
+  const totalPaid = approvedSales.reduce((a, s) => a + s.commission_amount, 0);
+  const totalPending = sales.filter((s) => s.status === "pending").reduce((a, s) => a + s.commission_amount, 0);
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
         {[
-          { label: "Total Earned", value: `₹${((totalPaid + totalPending) / 100000).toFixed(1)}L`, color: "#1e1b4b", bg: "#ede9fe" },
-          { label: "Total Paid", value: `₹${(totalPaid / 100000).toFixed(1)}L`, color: "#22c55e", bg: "#dcfce7" },
-          { label: "Pending Payout", value: `₹${(totalPending / 100000).toFixed(1)}L`, color: "#f59e0b", bg: "#fef3c7" },
+          { label: "Total Earned", value: formatINR(totalPaid + totalPending), color: "#1e1b4b", bg: "#ede9fe" },
+          { label: "Approved Commission", value: formatINR(totalPaid), color: "#22c55e", bg: "#dcfce7" },
+          { label: "Pending Payout", value: formatINR(totalPending), color: "#f59e0b", bg: "#fef3c7" },
         ].map((s) => (
           <Card key={s.label} className="p-4 border border-border shadow-sm text-center">
             <p className="text-2xl font-bold" style={{ color: s.color }}>{s.value}</p>
@@ -319,49 +289,44 @@ function CommissionLedger() {
         <Table>
           <TableHeader>
             <TableRow className="bg-secondary/50">
-              {["Broker", "Sale ID", "Property", "Role", "Rate", "Amount", "Status", "Date", "Action"].map((h) => (
+              {["Associate", "Sale ID", "Property", "Sale Amount", "Commission (4%)", "Status", "Date"].map((h) => (
                 <TableHead key={h} className="font-semibold text-[#1e1b4b] text-xs">{h}</TableHead>
               ))}
             </TableRow>
           </TableHeader>
           <TableBody>
-            {ledger.map((entry, i) => {
-              const cs = commStatusConfig[entry.status];
+            {sales.map((s) => {
+              const cs = s.status === "approved"
+                ? { bg: "#dcfce7", color: "#166534" }
+                : s.status === "pending"
+                ? { bg: "#fef3c7", color: "#92400e" }
+                : { bg: "#fee2e2", color: "#991b1b" };
               return (
-                <TableRow key={i} className="hover:bg-secondary/30">
+                <TableRow key={s.id} className="hover:bg-secondary/30">
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
                         style={{ background: "#ede9fe", color: "#1e1b4b" }}>
-                        {entry.broker.charAt(0)}
+                        {(s.associate_name || "?").charAt(0)}
                       </div>
-                      <span className="text-sm font-medium text-[#1e1b4b]">{entry.broker}</span>
+                      <span className="text-sm font-medium text-[#1e1b4b]">{s.associate_name || "—"}</span>
                     </div>
                   </TableCell>
                   <TableCell>
-                    <code className="text-xs font-mono bg-secondary px-1.5 py-0.5 rounded">{entry.saleId}</code>
+                    <code className="text-xs font-mono bg-secondary px-1.5 py-0.5 rounded">
+                      {s.id.length > 14 ? s.id.substring(0, 14) + "…" : s.id}
+                    </code>
                   </TableCell>
-                  <TableCell className="text-xs text-muted-foreground max-w-[140px] truncate">{entry.property}</TableCell>
-                  <TableCell>
-                    <Badge className="text-xs" style={{ background: "#eef2ff", color: "#6366f1" }}>{entry.role}</Badge>
-                  </TableCell>
-                  <TableCell className="text-sm font-medium text-[#1e1b4b]">{entry.pct}%</TableCell>
-                  <TableCell className="font-bold text-[#1e1b4b]">
-                    ₹{entry.amount.toLocaleString("en-IN")}
-                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground max-w-[140px] truncate">{s.property_name}</TableCell>
+                  <TableCell className="font-semibold text-[#1e1b4b]">{formatINR(s.sale_amount)}</TableCell>
+                  <TableCell className="font-bold text-[#1e1b4b]">₹{s.commission_amount.toLocaleString("en-IN")}</TableCell>
                   <TableCell>
                     <Badge className="text-xs px-2 py-0.5" style={{ background: cs.bg, color: cs.color }}>
-                      {entry.status}
+                      {s.status}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">{entry.date}</TableCell>
-                  <TableCell>
-                    {entry.status === "pending" && (
-                      <Button size="sm" className="h-7 text-xs px-2.5"
-                        style={{ background: "#D4AF37", color: "#1e1b4b" }}>
-                        Mark Paid
-                      </Button>
-                    )}
+                  <TableCell className="text-xs text-muted-foreground">
+                    {s.sale_date || s.created_at?.split("T")[0]}
                   </TableCell>
                 </TableRow>
               );
@@ -373,59 +338,99 @@ function CommissionLedger() {
   );
 }
 
-function RecordSaleForm({ onClose }: { onClose: () => void }) {
+function RecordSaleForm({
+  properties,
+  onSubmit,
+  onClose,
+}: {
+  properties: { id: string; name: string }[];
+  onSubmit: (data: Omit<SaleRecord, "id" | "created_at">) => Promise<void>;
+  onClose: () => void;
+}) {
+  const [propertyId, setPropertyId] = useState("");
+  const [propertyName, setPropertyName] = useState("");
+  const [buyerName, setBuyerName] = useState("");
+  const [buyerPhone, setBuyerPhone] = useState("");
   const [saleAmount, setSaleAmount] = useState("");
+  const [saleDate, setSaleDate] = useState(new Date().toISOString().split("T")[0]);
+  const [submitting, setSubmitting] = useState(false);
 
-  const commPreview = saleAmount
-    ? [
-        { role: "Seller (You, L0)", pct: 4, amount: Number(saleAmount) * 0.04 },
-        { role: "Your Referrer (L1)", pct: 1.5, amount: Number(saleAmount) * 0.015 },
-        { role: "L2 Upline", pct: 0.5, amount: Number(saleAmount) * 0.005 },
-      ]
-    : [];
+  const amount = Number(saleAmount) || 0;
+  const commPreview = amount > 0 ? [
+    { role: "Seller (You, L0)", pct: 4, amount: amount * 0.04 },
+    { role: "Your Referrer (L1)", pct: 1.5, amount: amount * 0.015 },
+    { role: "L2 Upline", pct: 0.5, amount: amount * 0.005 },
+  ] : [];
+
+  const handleSubmit = async () => {
+    if (!propertyName || !buyerName || !amount) {
+      toast.error("Please fill all required fields");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await onSubmit({
+        property_id: propertyId || undefined,
+        property_name: propertyName,
+        buyer_name: buyerName,
+        buyer_phone: buyerPhone,
+        sale_amount: amount,
+        commission_amount: Math.round(amount * 0.04),
+        status: "pending",
+        sale_date: saleDate,
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="space-y-4 pt-2">
       <div className="space-y-1.5">
         <Label className="text-sm font-medium text-[#1e1b4b]">Select Property *</Label>
-        <Select>
+        <Select onValueChange={(val) => {
+          const prop = properties.find((p) => p.id === val);
+          if (prop) { setPropertyId(prop.id); setPropertyName(prop.name); }
+        }}>
           <SelectTrigger className="h-10"><SelectValue placeholder="Choose property" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="p1">Royal Meadows - Plot A-204</SelectItem>
-            <SelectItem value="p2">Silver Oak - Plot C-88</SelectItem>
-            <SelectItem value="p3">Palm Grove - Plot D-41</SelectItem>
+            {properties.map((p) => (
+              <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
+        {!propertyId && (
+          <Input
+            placeholder="Or type property name manually"
+            className="h-9 text-sm"
+            value={propertyName}
+            onChange={(e) => setPropertyName(e.target.value)}
+          />
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
           <Label className="text-sm font-medium text-[#1e1b4b]">Buyer Name *</Label>
-          <Input placeholder="e.g. Suresh Gupta" className="h-10" />
+          <Input placeholder="e.g. Suresh Gupta" className="h-10" value={buyerName} onChange={(e) => setBuyerName(e.target.value)} />
         </div>
         <div className="space-y-1.5">
-          <Label className="text-sm font-medium text-[#1e1b4b]">Buyer Phone *</Label>
-          <Input placeholder="+91 98xxx xxxxx" className="h-10" />
+          <Label className="text-sm font-medium text-[#1e1b4b]">Buyer Phone</Label>
+          <Input placeholder="+91 98xxx xxxxx" className="h-10" value={buyerPhone} onChange={(e) => setBuyerPhone(e.target.value)} />
         </div>
       </div>
 
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium text-[#1e1b4b]">Sale Amount (₹) *</Label>
-        <Input
-          type="number"
-          placeholder="e.g. 8500000"
-          className="h-10"
-          value={saleAmount}
-          onChange={(e) => setSaleAmount(e.target.value)}
-        />
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <Label className="text-sm font-medium text-[#1e1b4b]">Sale Amount (₹) *</Label>
+          <Input type="number" placeholder="e.g. 8500000" className="h-10" value={saleAmount} onChange={(e) => setSaleAmount(e.target.value)} />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-sm font-medium text-[#1e1b4b]">Sale Date</Label>
+          <Input type="date" className="h-10" value={saleDate} onChange={(e) => setSaleDate(e.target.value)} />
+        </div>
       </div>
 
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium text-[#1e1b4b]">Sale Date</Label>
-        <Input type="date" className="h-10" defaultValue="2024-04-10" />
-      </div>
-
-      {/* Commission Preview */}
       {commPreview.length > 0 && (
         <div className="rounded-xl p-4 border border-[#D4AF37]/30" style={{ background: "#fefce8" }}>
           <p className="text-xs font-semibold text-[#1e1b4b] mb-3 flex items-center gap-2">
@@ -444,9 +449,10 @@ function RecordSaleForm({ onClose }: { onClose: () => void }) {
       )}
 
       <div className="flex gap-3 pt-2">
-        <Button variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
-        <Button className="flex-1" style={{ background: "linear-gradient(135deg, #1e1b4b, #8b5cf6)", color: "white" }}>
-          Submit for Approval
+        <Button variant="outline" className="flex-1" onClick={onClose} disabled={submitting}>Cancel</Button>
+        <Button className="flex-1" style={{ background: "linear-gradient(135deg, #1e1b4b, #8b5cf6)", color: "white" }}
+          onClick={handleSubmit} disabled={submitting}>
+          {submitting ? "Submitting…" : "Submit for Approval"}
         </Button>
       </div>
     </div>

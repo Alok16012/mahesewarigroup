@@ -1,6 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { useCurrentUser } from "@/hooks/use-auth";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,7 +17,7 @@ import {
 import {
   Users, Search, UserCheck, UserX, TrendingUp, ChevronDown,
   ChevronRight, Copy, Phone, Mail, Calendar, Hash, Plus,
-  Lock, Percent, AlertCircle,
+  Lock, Percent, AlertCircle, Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -42,60 +44,20 @@ type Associate = {
   joined: string;
   sales: number;
   commission: number;
+  username?: string;
+  password?: string;
 };
 
 const INITIAL_ASSOCIATES: Associate[] = [
-  // Level 1 — direct under Admin
-  {
-    id: "A-001", name: "Alok Kumar", email: "alok@email.com", phone: "+91 98765 00001",
-    level: 1, status: "active", referralCode: "MG-AK-001", parentId: "admin", parentName: "Admin",
-    joined: "2024-01-10", sales: 18, commission: 720000,
-  },
-  {
-    id: "A-002", name: "Priya Mehta", email: "priya@email.com", phone: "+91 98765 00002",
-    level: 1, status: "active", referralCode: "MG-PM-002", parentId: "admin", parentName: "Admin",
-    joined: "2024-01-15", sales: 22, commission: 880000,
-  },
-  // Level 2 — under Alok (A-001)
-  {
-    id: "A-003", name: "Ram Singh", email: "ram@email.com", phone: "+91 98765 00003",
-    level: 2, status: "active", referralCode: "MG-RS-003", parentId: "A-001", parentName: "Alok Kumar",
-    joined: "2024-02-01", sales: 10, commission: 400000,
-  },
-  {
-    id: "A-004", name: "Subham Gupta", email: "subham@email.com", phone: "+91 98765 00004",
-    level: 2, status: "active", referralCode: "MG-SG-004", parentId: "A-001", parentName: "Alok Kumar",
-    joined: "2024-02-10", sales: 8, commission: 320000,
-  },
-  // Level 2 — under Priya (A-002)
-  {
-    id: "A-005", name: "Vikram Joshi", email: "vikram@email.com", phone: "+91 98765 00005",
-    level: 2, status: "inactive", referralCode: "MG-VJ-005", parentId: "A-002", parentName: "Priya Mehta",
-    joined: "2024-02-20", sales: 4, commission: 160000,
-  },
-  // Level 3 — under Ram (A-003), CANNOT create more
-  {
-    id: "A-006", name: "Amar Patel", email: "amar@email.com", phone: "+91 98765 00006",
-    level: 3, status: "active", referralCode: "MG-AP-006", parentId: "A-003", parentName: "Ram Singh",
-    joined: "2024-03-05", sales: 3, commission: 120000,
-  },
-  {
-    id: "A-007", name: "Geeta Sharma", email: "geeta@email.com", phone: "+91 98765 00007",
-    level: 3, status: "active", referralCode: "MG-GS-007", parentId: "A-003", parentName: "Ram Singh",
-    joined: "2024-03-10", sales: 5, commission: 200000,
-  },
-  // Level 3 — under Subham (A-004), CANNOT create more
-  {
-    id: "A-008", name: "Deepika Rao", email: "deepika@email.com", phone: "+91 98765 00008",
-    level: 3, status: "active", referralCode: "MG-DR-008", parentId: "A-004", parentName: "Subham Gupta",
-    joined: "2024-03-15", sales: 2, commission: 80000,
-  },
-  // Level 3 — under Vikram (A-005), CANNOT create more
-  {
-    id: "A-009", name: "Sneha Reddy", email: "sneha@email.com", phone: "+91 98765 00009",
-    level: 3, status: "active", referralCode: "MG-SR-009", parentId: "A-005", parentName: "Vikram Joshi",
-    joined: "2024-03-20", sales: 1, commission: 40000,
-  },
+  { id: "A-001", name: "Alok Kumar",    email: "alok@email.com",    phone: "+91 98765 00001", level: 1, status: "active",   referralCode: "MG-AK-001", parentId: "admin", parentName: "Admin",        joined: "2024-01-10", sales: 18, commission: 720000, username: "alok.kumar",    password: "Alok@1234"  },
+  { id: "A-002", name: "Priya Mehta",   email: "priya@email.com",   phone: "+91 98765 00002", level: 1, status: "active",   referralCode: "MG-PM-002", parentId: "admin", parentName: "Admin",        joined: "2024-01-15", sales: 22, commission: 880000, username: "priya.mehta",   password: "Priya@1234" },
+  { id: "A-003", name: "Ram Singh",     email: "ram@email.com",     phone: "+91 98765 00003", level: 2, status: "active",   referralCode: "MG-RS-003", parentId: "A-001", parentName: "Alok Kumar",   joined: "2024-02-01", sales: 10, commission: 400000, username: "ram.singh",     password: "Ram@1234"   },
+  { id: "A-004", name: "Subham Gupta",  email: "subham@email.com",  phone: "+91 98765 00004", level: 2, status: "active",   referralCode: "MG-SG-004", parentId: "A-001", parentName: "Alok Kumar",   joined: "2024-02-10", sales:  8, commission: 320000, username: "subham.gupta",  password: "Sub@1234"   },
+  { id: "A-005", name: "Vikram Joshi",  email: "vikram@email.com",  phone: "+91 98765 00005", level: 2, status: "inactive", referralCode: "MG-VJ-005", parentId: "A-002", parentName: "Priya Mehta",  joined: "2024-02-20", sales:  4, commission: 160000, username: "vikram.joshi",  password: "Vik@1234"   },
+  { id: "A-006", name: "Amar Patel",    email: "amar@email.com",    phone: "+91 98765 00006", level: 3, status: "active",   referralCode: "MG-AP-006", parentId: "A-003", parentName: "Ram Singh",    joined: "2024-03-05", sales:  3, commission: 120000, username: "amar.patel",    password: "Amar@1234"  },
+  { id: "A-007", name: "Geeta Sharma",  email: "geeta@email.com",   phone: "+91 98765 00007", level: 3, status: "active",   referralCode: "MG-GS-007", parentId: "A-003", parentName: "Ram Singh",    joined: "2024-03-10", sales:  5, commission: 200000, username: "geeta.sharma",  password: "Geet@1234"  },
+  { id: "A-008", name: "Deepika Rao",   email: "deepika@email.com", phone: "+91 98765 00008", level: 3, status: "active",   referralCode: "MG-DR-008", parentId: "A-004", parentName: "Subham Gupta", joined: "2024-03-15", sales:  2, commission:  80000, username: "deepika.rao",   password: "Deep@1234"  },
+  { id: "A-009", name: "Sneha Reddy",   email: "sneha@email.com",   phone: "+91 98765 00009", level: 3, status: "active",   referralCode: "MG-SR-009", parentId: "A-005", parentName: "Vikram Joshi", joined: "2024-03-20", sales:  1, commission:  40000, username: "sneha.reddy",   password: "Sneh@1234"  },
 ];
 
 const statusConfig: Record<AssociateStatus, { label: string; bg: string; color: string }> = {
@@ -113,17 +75,61 @@ const levelConfig: Record<AssociateLevel, { color: string; bg: string; label: st
 const formatINR = (v: number) =>
   v >= 10000000 ? `₹${(v / 10000000).toFixed(2)}Cr` : `₹${(v / 100000).toFixed(1)}L`;
 
+// ─── Login Credentials Cell ───────────────────────────────────────────────────
+function LoginCredsCell({ username, password }: { username?: string; password?: string }) {
+  const [show, setShow] = useState(false);
+
+  if (!username && !password) {
+    return <span className="text-xs text-muted-foreground">—</span>;
+  }
+
+  const copyBoth = () => {
+    navigator.clipboard.writeText(`Username: ${username}\nPassword: ${password}`);
+    toast.success("Credentials copied!");
+  };
+
+  return (
+    <div className="space-y-1 min-w-[140px]">
+      {/* Username */}
+      <div className="flex items-center gap-1.5">
+        <span className="text-[10px] text-slate-400 w-6 shrink-0">ID</span>
+        <code className="text-xs font-mono text-[#1e1b4b] font-semibold">{username || "—"}</code>
+      </div>
+      {/* Password */}
+      <div className="flex items-center gap-1.5">
+        <span className="text-[10px] text-slate-400 w-6 shrink-0">PW</span>
+        <code className="text-xs font-mono text-[#1e1b4b] font-semibold tracking-wider">
+          {show ? (password || "—") : "••••••••"}
+        </code>
+        <button onClick={() => setShow((v) => !v)} className="text-slate-300 hover:text-slate-600 transition-colors ml-0.5">
+          {show
+            ? <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-1.172 2.872M3 3l18 18" /></svg>
+            : <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+          }
+        </button>
+        <button onClick={copyBoth} className="text-slate-300 hover:text-indigo-500 transition-colors">
+          <Copy className="w-3 h-3" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Tree Node ────────────────────────────────────────────────────────────────
 function AssociateNode({
   associate,
   allAssociates,
   depth,
   onAdd,
+  onDelete,
+  isAdmin = true,
 }: {
   associate: Associate;
   allAssociates: Associate[];
   depth: number;
   onAdd: (parent: Associate) => void;
+  onDelete: (associate: Associate) => void;
+  isAdmin?: boolean;
 }) {
   const [expanded, setExpanded] = useState(true);
   const children = allAssociates.filter((a) => a.parentId === associate.id);
@@ -171,7 +177,12 @@ function AssociateNode({
               </span>
             )}
           </div>
-          <p className="text-xs text-muted-foreground">{associate.referralCode}</p>
+          <div className="flex items-center gap-2 mt-0.5">
+            <code className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-600 border border-indigo-100">
+              {associate.id}
+            </code>
+            <span className="text-xs text-muted-foreground">{associate.referralCode}</span>
+          </div>
         </div>
 
         {/* stats */}
@@ -186,13 +197,37 @@ function AssociateNode({
           </span>
         </div>
 
-        {/* add button */}
-        {canCreate && (
+        {/* invite link */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
+            const link = `${origin}/register?ref=${associate.referralCode}`;
+            navigator.clipboard.writeText(link);
+            toast.success(`Invite link copied for ${associate.name}`);
+          }}
+          className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-xs font-medium text-emerald-600 bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded-lg"
+        >
+          <Copy className="w-3 h-3" /> Invite
+        </button>
+
+        {/* add sub-associate button — admin only */}
+        {isAdmin && canCreate && (
           <button
             onClick={() => onAdd(associate)}
             className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-xs font-medium text-[#6366f1] bg-[#eef2ff] hover:bg-[#e0e7ff] px-2 py-1 rounded-lg"
           >
             <Plus className="w-3 h-3" /> Add
+          </button>
+        )}
+
+        {/* delete button — admin only */}
+        {isAdmin && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onDelete(associate); }}
+            className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 px-2 py-1 rounded-lg"
+          >
+            <Trash2 className="w-3 h-3" /> Delete
           </button>
         )}
       </div>
@@ -207,6 +242,8 @@ function AssociateNode({
               allAssociates={allAssociates}
               depth={depth + 1}
               onAdd={onAdd}
+              onDelete={onDelete}
+              isAdmin={isAdmin}
             />
           ))}
         </div>
@@ -306,8 +343,8 @@ allAssociates: Associate[];
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
-      <DialogContent className="max-w-md p-0">
-        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-5">
+      <DialogContent size="default" className="p-0">
+        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-5 rounded-t-2xl">
           <DialogTitle className="text-xl font-bold text-white">Add New Associate</DialogTitle>
           <p className="text-indigo-100 text-xs mt-1">Create a new team member in your network</p>
         </div>
@@ -458,6 +495,7 @@ allAssociates: Associate[];
 // ─── Credentials Modal ────────────────────────────────────────────────────────
 function CredentialsModal({
   open,
+  associateId,
   name,
   referralCode,
   username,
@@ -465,6 +503,7 @@ function CredentialsModal({
   onClose,
 }: {
   open: boolean;
+  associateId: string;
   name: string;
   referralCode: string;
   username: string;
@@ -476,10 +515,38 @@ function CredentialsModal({
     toast.success(`${label} copied!`);
   };
 
+  const copyAll = () => {
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const text = [
+      `Associate: ${name}`,
+      `Associate ID: ${associateId}`,
+      `Referral Code: ${referralCode}`,
+      `Username: ${username}`,
+      `Password: ${password}`,
+      `Invite Link: ${origin}/register?ref=${referralCode}`,
+    ].join("\n");
+    navigator.clipboard.writeText(text);
+    toast.success("All credentials copied!");
+  };
+
+  const CredRow = ({ label, value, accent }: { label: string; value: string; accent?: boolean }) => (
+    <div className="space-y-1">
+      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">{label}</p>
+      <div className={`flex items-center gap-2 rounded-xl px-3 py-2.5 border ${accent ? "bg-emerald-50 border-emerald-200" : "bg-slate-50 border-slate-200"}`}>
+        <code className={`flex-1 font-mono text-sm font-bold truncate ${accent ? "text-emerald-700" : "text-[#1e1b4b]"}`}>{value}</code>
+        <button onClick={() => copy(value, label)} className={`transition-colors shrink-0 ${accent ? "text-emerald-500 hover:text-emerald-700" : "text-indigo-400 hover:text-indigo-600"}`}>
+          <Copy className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
+
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-sm">
-        <div className="bg-gradient-to-r from-green-500 to-emerald-600 px-6 py-5 rounded-t-2xl -mx-0 -mt-0">
+      <DialogContent size="sm" className="p-0">
+        <div className="bg-gradient-to-r from-green-500 to-emerald-600 px-6 py-5 rounded-t-2xl">
           <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center mb-3">
             <UserCheck className="w-6 h-6 text-white" />
           </div>
@@ -488,68 +555,164 @@ function CredentialsModal({
         </div>
 
         <div className="px-6 py-5 space-y-3">
-          {/* Referral Code */}
-          <div className="space-y-1">
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Referral Code</p>
-            <div className="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-200">
-              <code className="flex-1 font-mono text-sm font-bold text-[#1e1b4b]">{referralCode}</code>
-              <button onClick={() => copy(referralCode, "Referral code")} className="text-indigo-400 hover:text-indigo-600 transition-colors">
-                <Copy className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
+          <CredRow label="Associate ID" value={associateId} />
+          <CredRow label="Referral Code" value={referralCode} />
+          <CredRow label="Username" value={username} />
+          <CredRow label="Password" value={password} />
+          <CredRow label="Invite Link" value={`${origin}/register?ref=${referralCode}`} accent />
 
-          {/* Username */}
-          <div className="space-y-1">
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Username</p>
-            <div className="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-200">
-              <code className="flex-1 font-mono text-sm text-[#1e1b4b]">{username}</code>
-              <button onClick={() => copy(username, "Username")} className="text-indigo-400 hover:text-indigo-600 transition-colors">
-                <Copy className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-
-          {/* Password */}
-          <div className="space-y-1">
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Password</p>
-            <div className="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2.5 border border-slate-200">
-              <code className="flex-1 font-mono text-sm text-[#1e1b4b]">{password}</code>
-              <button onClick={() => copy(password, "Password")} className="text-indigo-400 hover:text-indigo-600 transition-colors">
-                <Copy className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-2 p-3 bg-amber-50 rounded-xl text-xs text-amber-700 border border-amber-100 mt-1">
+          <div className="flex items-start gap-2 p-3 bg-amber-50 rounded-xl text-xs text-amber-700 border border-amber-100">
             <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-            <span>Save these credentials now. The password will not be shown again.</span>
+            <span>Save these credentials before closing. Once dismissed, the password cannot be recovered.</span>
           </div>
 
-          <Button
-            className="w-full h-11 rounded-xl bg-[#1e1b4b] text-white hover:bg-[#0f0d24] font-semibold mt-2"
-            onClick={onClose}
-          >
-            Done
-          </Button>
+          <div className="flex gap-2 pt-1">
+            <Button
+              variant="outline"
+              className="flex-1 h-11 rounded-xl border-slate-200 text-slate-600 font-medium"
+              onClick={copyAll}
+            >
+              <Copy className="w-4 h-4 mr-2" /> Copy All
+            </Button>
+            <Button
+              className="flex-1 h-11 rounded-xl bg-[#1e1b4b] text-white hover:bg-[#0f0d24] font-semibold"
+              onClick={onClose}
+            >
+              Done
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
   );
 }
 
+const STORAGE_KEY = "mg_associates_v2";
+
+function mapProfileToAssociate(p: any, allProfiles: any[]): Associate {
+  const parent = p.referred_by
+    ? allProfiles.find((x: any) => x.referral_code === p.referred_by)
+    : null;
+  const grandparent = parent?.referred_by
+    ? allProfiles.find((x: any) => x.referral_code === parent.referred_by)
+    : null;
+  const level: AssociateLevel = parent ? (grandparent ? 3 : 2) : 1;
+  return {
+    id: p.id,
+    name: p.full_name || p.email,
+    email: p.email,
+    phone: p.phone || "",
+    level,
+    status: (p.status as AssociateStatus) || "active",
+    referralCode: p.referral_code || "",
+    parentId: parent ? parent.id : "admin",
+    parentName: parent ? (parent.full_name || parent.email) : "Admin",
+    joined: p.created_at?.split("T")[0] || new Date().toISOString().split("T")[0],
+    sales: 0,
+    commission: 0,
+  };
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function AssociatesPage() {
-  const [associates, setAssociates] = useState<Associate[]>(INITIAL_ASSOCIATES);
+  const { user } = useCurrentUser();
+  const isAdmin = user?.role === "admin";
+
+  const [associates, setAssociates] = useState<Associate[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterLevel, setFilterLevel] = useState("all");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [addParent, setAddParent] = useState<Associate | null>(null);
   const [createdCreds, setCreatedCreds] = useState<{
-    name: string; referralCode: string; username: string; password: string;
+    associateId: string; name: string; referralCode: string; username: string; password: string;
   } | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<Associate | null>(null);
 
-  const filtered = associates.filter((a) => {
+  // ── Persist to localStorage ────────────────────────────────────────────────
+  const persist = useCallback((list: Associate[]) => {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); } catch {}
+  }, []);
+
+  // ── Load data on mount ─────────────────────────────────────────────────────
+  useEffect(() => {
+    async function load() {
+      // 1. Try Supabase profiles table
+      if (isSupabaseConfigured()) {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("*")
+          .in("role", ["associate", "sub-associate"]);
+        if (!error && data && data.length > 0) {
+          const mapped = data.map((p) => mapProfileToAssociate(p, data));
+          setAssociates(mapped);
+          persist(mapped);
+          setLoading(false);
+          return;
+        }
+      }
+      // 2. Fall back to localStorage (survives navigation in demo mode)
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          setAssociates(JSON.parse(stored));
+          setLoading(false);
+          return;
+        }
+      } catch {}
+      // 3. Seed from INITIAL_ASSOCIATES and persist
+      persist(INITIAL_ASSOCIATES);
+      setAssociates(INITIAL_ASSOCIATES);
+      setLoading(false);
+    }
+    load();
+  }, [persist]);
+
+  const getDescendants = (id: string, all: Associate[]): Associate[] => {
+    const children = all.filter((a) => a.parentId === id);
+    return children.flatMap((c) => [c, ...getDescendants(c.id, all)]);
+  };
+
+  const handleDeleteAssociate = async () => {
+    if (!deleteConfirm) return;
+    const descendants = getDescendants(deleteConfirm.id, associates);
+    const toRemove = new Set([deleteConfirm.id, ...descendants.map((d) => d.id)]);
+    const updated = associates.filter((a) => !toRemove.has(a.id));
+    setAssociates(updated);
+    persist(updated);
+    // Delete from Supabase if IDs are real UUIDs
+    if (isSupabaseConfigured()) {
+      for (const id of toRemove) {
+        if (/^[0-9a-f]{8}-[0-9a-f]{4}/i.test(id)) {
+          fetch("/api/db", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ op: "delete", table: "profiles", id }),
+          }).catch(() => {});
+        }
+      }
+    }
+    const extra = descendants.length > 0 ? ` and ${descendants.length} sub-associate(s)` : "";
+    toast.success(`Deleted ${deleteConfirm.name}${extra}`);
+    setDeleteConfirm(null);
+  };
+
+  // ── Network filter: non-admin sees only their downline (not themselves) ───
+  const visibleAssociates = useMemo(() => {
+    if (isAdmin || !user) return associates;
+    // Collect all associates BELOW the logged-in user (excluding self)
+    const downline = new Set<string>();
+    const addDown = (id: string) => {
+      associates.filter((a) => a.parentId === id).forEach((child) => {
+        downline.add(child.id);
+        addDown(child.id);
+      });
+    };
+    addDown(user.id);
+    return associates.filter((a) => downline.has(a.id));
+  }, [associates, isAdmin, user]);
+
+  const filtered = visibleAssociates.filter((a) => {
     const matchSearch =
       a.name.toLowerCase().includes(search.toLowerCase()) ||
       a.id.toLowerCase().includes(search.toLowerCase()) ||
@@ -558,10 +721,10 @@ export default function AssociatesPage() {
     return matchSearch && matchLevel;
   });
 
-  const l1 = associates.filter((a) => a.level === 1);
-  const l2 = associates.filter((a) => a.level === 2);
-  const l3 = associates.filter((a) => a.level === 3);
-  const active = associates.filter((a) => a.status === "active");
+  const l1 = visibleAssociates.filter((a) => a.level === 1);
+  const l2 = visibleAssociates.filter((a) => a.level === 2);
+  const l3 = visibleAssociates.filter((a) => a.level === 3);
+  const active = visibleAssociates.filter((a) => a.status === "active");
 
   const openAddFor = (parent: Associate | null) => {
     setAddParent(parent);
@@ -575,33 +738,55 @@ export default function AssociatesPage() {
       .join("")
       .toUpperCase()
       .slice(0, 2);
-    const newId = `A-${String(associates.length + 1).padStart(3, "0")}`;
-    const referralCode = `MG-${initials}-${String(associates.length + 1).padStart(3, "0")}`;
-    setAssociates((prev) => [...prev, { ...data, id: newId, referralCode }]);
+    const nextNum = associates.length > 0
+      ? Math.max(...associates.map((a) => parseInt(a.id.replace(/\D/g, "") || "0"))) + 1
+      : 1;
+    const newId = `A-${String(nextNum).padStart(3, "0")}`;
+    const referralCode = `MG-${initials}-${String(nextNum).padStart(3, "0")}`;
+    const updated = [...associates, { ...data, id: newId, referralCode, username: creds.username, password: creds.password }];
+    setAssociates(updated);
+    persist(updated);
     setAddDialogOpen(false);
-    // Show credentials modal after a brief delay so the add dialog fully closes first
     setTimeout(() => {
-      setCreatedCreds({ name: data.name, referralCode, username: creds.username, password: creds.password });
+      setCreatedCreds({ associateId: newId, name: data.name, referralCode, username: creds.username, password: creds.password });
     }, 200);
   };
 
-  // top-level associates (L1 under admin)
-  const topLevel = associates.filter((a) => a.parentId === "admin");
+  // Tree root: admin sees all top-level, associate sees direct children as roots
+  const topLevel = isAdmin
+    ? visibleAssociates.filter((a) => a.parentId === "admin")
+    : visibleAssociates.filter((a) => a.parentId === user?.id);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#6366f1]" />
+      </div>
+    );
+  }
 
   return (
     <div className="animate-fade-in space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[#1e1b4b]">Associates</h1>
-          <p className="text-sm text-gray-400 mt-0.5">MLM hierarchy · L1→L2→L3 · 4% + 2% commission</p>
+          <h1 className="text-2xl font-bold text-[#1e1b4b]">
+            {isAdmin ? "Associates" : "My Network"}
+          </h1>
+          <p className="text-sm text-gray-400 mt-0.5">
+            {isAdmin
+              ? "MLM hierarchy · L1→L2→L3 · 4% + 2% commission"
+              : `${user?.full_name} · ${visibleAssociates.length} team member${visibleAssociates.length !== 1 ? "s" : ""} in your network`}
+          </p>
         </div>
-        <Button
-          onClick={() => openAddFor(null)}
-          className="h-10 px-4 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 shadow-md flex items-center gap-2"
-        >
-          <Plus className="w-4 h-4" /> Add Associate
-        </Button>
+        {isAdmin && (
+          <Button
+            onClick={() => openAddFor(null)}
+            className="h-10 px-4 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 shadow-md flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" /> Add Associate
+          </Button>
+        )}
       </div>
 
       {/* Commission structure banner */}
@@ -638,7 +823,7 @@ export default function AssociatesPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         {[
-          { label: "Total Associates", value: associates.length, color: "#6366f1", bg: "#eef2ff", icon: Users },
+          { label: isAdmin ? "Total Associates" : "My Team", value: visibleAssociates.length, color: "#6366f1", bg: "#eef2ff", icon: Users },
           { label: "Active", value: active.length, color: "#22c55e", bg: "#dcfce7", icon: UserCheck },
           { label: "Level 1", value: l1.length, color: "#6366f1", bg: "#eef2ff", icon: Users },
           { label: "Level 2", value: l2.length, color: "#f59e0b", bg: "#fffbeb", icon: Users },
@@ -695,34 +880,38 @@ export default function AssociatesPage() {
             </div>
 
             <div className="p-5 overflow-x-auto">
-              {/* Admin root */}
-              <div className="flex items-center gap-3 py-2 px-3 mb-1">
-                <div className="w-5 h-5 flex-shrink-0" />
-                <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold"
-                  style={{ background: "#1e1b4b", color: "white" }}>
-                  M
+              {/* Admin root — only shown to admin */}
+              {isAdmin && (
+                <div className="flex items-center gap-3 py-2 px-3 mb-1">
+                  <div className="w-5 h-5 flex-shrink-0" />
+                  <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold"
+                    style={{ background: "#1e1b4b", color: "white" }}>
+                    M
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-[#1e1b4b]">Maheshwari Group (Admin)</p>
+                    <p className="text-xs text-muted-foreground">Root — can create L1 associates</p>
+                  </div>
+                  <Badge className="ml-2 text-xs" style={{ background: "#ede9fe", color: "#1e1b4b" }}>Root</Badge>
+                  <button
+                    onClick={() => openAddFor(null)}
+                    className="ml-auto flex items-center gap-1 text-xs font-medium text-[#6366f1] bg-[#eef2ff] hover:bg-[#e0e7ff] px-2 py-1 rounded-lg"
+                  >
+                    <Plus className="w-3 h-3" /> Add L1
+                  </button>
                 </div>
-                <div>
-                  <p className="text-sm font-bold text-[#1e1b4b]">Maheshwari Group (Admin)</p>
-                  <p className="text-xs text-muted-foreground">Root — can create L1 associates</p>
-                </div>
-                <Badge className="ml-2 text-xs" style={{ background: "#ede9fe", color: "#1e1b4b" }}>Root</Badge>
-                <button
-                  onClick={() => openAddFor(null)}
-                  className="ml-auto flex items-center gap-1 text-xs font-medium text-[#6366f1] bg-[#eef2ff] hover:bg-[#e0e7ff] px-2 py-1 rounded-lg"
-                >
-                  <Plus className="w-3 h-3" /> Add L1
-                </button>
-              </div>
+              )}
 
-              <div className="border-l-2 border-dashed border-border/60 ml-[22px]">
+              <div className={`border-l-2 border-dashed border-border/60 ${isAdmin ? "ml-[22px]" : ""}`}>
                 {topLevel.map((a) => (
                   <AssociateNode
                     key={a.id}
                     associate={a}
-                    allAssociates={associates}
+                    allAssociates={visibleAssociates}
                     depth={1}
                     onAdd={openAddFor}
+                    onDelete={setDeleteConfirm}
+                    isAdmin={isAdmin}
                   />
                 ))}
               </div>
@@ -799,13 +988,23 @@ export default function AssociatesPage() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-secondary/50">
-                  {["Associate", "Contact", "Referral Code", "Level", "Referred By", "Sales", "Commission", "Status", "Actions"].map(
-                    (h) => (
-                      <TableHead key={h} className="font-semibold text-[#1e1b4b] text-xs">
-                        {h}
-                      </TableHead>
-                    )
-                  )}
+                  {[
+                    "Associate",
+                    "Associate ID",
+                    ...(isAdmin ? ["Login Credentials"] : []),
+                    "Contact",
+                    "Referral Code",
+                    "Level",
+                    "Referred By",
+                    "Sales",
+                    "Commission",
+                    "Status",
+                    ...(isAdmin ? ["Actions"] : []),
+                  ].map((h) => (
+                    <TableHead key={h} className="font-semibold text-[#1e1b4b] text-xs">
+                      {h}
+                    </TableHead>
+                  ))}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -815,6 +1014,7 @@ export default function AssociatesPage() {
                   const canCreate = associate.level < 3;
                   return (
                     <TableRow key={associate.id} className="hover:bg-secondary/30 transition-colors">
+                      {/* Name */}
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <div
@@ -823,12 +1023,30 @@ export default function AssociatesPage() {
                           >
                             {associate.name.charAt(0)}
                           </div>
-                          <div>
-                            <p className="font-semibold text-[#1e1b4b] text-sm">{associate.name}</p>
-                            <p className="text-xs text-muted-foreground">{associate.id}</p>
-                          </div>
+                          <p className="font-semibold text-[#1e1b4b] text-sm">{associate.name}</p>
                         </div>
                       </TableCell>
+
+                      {/* Associate ID */}
+                      <TableCell>
+                        <button
+                          onClick={() => { navigator.clipboard.writeText(associate.id); toast.success("ID copied!"); }}
+                          className="flex items-center gap-1.5 group"
+                          title="Click to copy"
+                        >
+                          <code className="font-mono text-xs font-bold px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-100 group-hover:bg-indigo-100 transition-colors">
+                            {associate.id}
+                          </code>
+                          <Copy className="w-3 h-3 text-indigo-300 group-hover:text-indigo-500 transition-colors" />
+                        </button>
+                      </TableCell>
+
+                      {/* Login Credentials — admin only */}
+                      {isAdmin && (
+                        <TableCell>
+                          <LoginCredsCell username={associate.username} password={associate.password} />
+                        </TableCell>
+                      )}
                       <TableCell>
                         <div className="space-y-0.5">
                           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -880,24 +1098,35 @@ export default function AssociatesPage() {
                           {sc.label}
                         </Badge>
                       </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1">
-                          {canCreate ? (
+                      {/* Actions — admin only */}
+                      {isAdmin && (
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            {canCreate ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-xs px-2 text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+                                onClick={() => openAddFor(associate)}
+                              >
+                                <Plus className="w-3 h-3 mr-1" /> Add Below
+                              </Button>
+                            ) : (
+                              <span className="text-[10px] text-orange-400 flex items-center gap-1 px-2">
+                                <Lock className="w-3 h-3" /> Leaf node
+                              </span>
+                            )}
                             <Button
-                              variant="outline"
+                              variant="ghost"
                               size="sm"
-                              className="h-7 text-xs px-2 text-indigo-600 border-indigo-200 hover:bg-indigo-50"
-                              onClick={() => openAddFor(associate)}
+                              className="h-7 w-7 p-0 text-gray-400 hover:text-red-500 hover:bg-red-50"
+                              onClick={() => setDeleteConfirm(associate)}
                             >
-                              <Plus className="w-3 h-3 mr-1" /> Add Below
+                              <Trash2 className="w-3.5 h-3.5" />
                             </Button>
-                          ) : (
-                            <span className="text-[10px] text-orange-400 flex items-center gap-1 px-2">
-                              <Lock className="w-3 h-3" /> Leaf node
-                            </span>
-                          )}
-                        </div>
-                      </TableCell>
+                          </div>
+                        </TableCell>
+                      )}
                     </TableRow>
                   );
                 })}
@@ -920,6 +1149,7 @@ export default function AssociatesPage() {
       {createdCreds && (
         <CredentialsModal
           open={!!createdCreds}
+          associateId={createdCreds.associateId}
           name={createdCreds.name}
           referralCode={createdCreds.referralCode}
           username={createdCreds.username}
@@ -927,6 +1157,41 @@ export default function AssociatesPage() {
           onClose={() => setCreatedCreds(null)}
         />
       )}
+
+      {/* Delete Confirmation */}
+      <Dialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
+        <DialogContent size="sm">
+          <DialogHeader>
+            <DialogTitle>Delete Associate?</DialogTitle>
+          </DialogHeader>
+          <div className="px-6 py-4">
+            {deleteConfirm && (() => {
+              const count = getDescendants(deleteConfirm.id, associates).length;
+              return (
+                <p className="text-sm text-gray-500">
+                  You are about to delete <span className="font-semibold text-[#1e1b4b]">{deleteConfirm.name}</span>
+                  {count > 0 && <span className="text-red-500"> and {count} sub-associate(s) below them</span>}.
+                  This cannot be undone.
+                </p>
+              );
+            })()}
+            <div className="flex gap-3 mt-5">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                className="flex-1 h-10 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteAssociate}
+                className="flex-1 h-10 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-semibold transition-colors"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
