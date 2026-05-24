@@ -5,19 +5,20 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, Building2, Users, TrendingUp,
   Target, LogOut, Home, ChevronRight,
-  MapPin, Settings,
+  MapPin, Settings, Headphones,
 } from "lucide-react";
 import { useCurrentUser } from "@/hooks/use-auth";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { toast } from "sonner";
 
 const navItems = [
-  { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard",           adminOnly: false },
-  { href: "/properties", icon: Building2,       label: "Properties",          adminOnly: false },
-  { href: "/leads",      icon: Target,          label: "Lead Management",     adminOnly: false },
-  { href: "/associates", icon: Users,           label: "Associate Network",   adminOnly: false },
-  { href: "/sales",      icon: TrendingUp,      label: "Sales & Commissions", adminOnly: false },
-  { href: "/settings",   icon: Settings,        label: "Settings",            adminOnly: true  },
+  { href: "/dashboard",   icon: LayoutDashboard, label: "Dashboard",           adminOnly: false },
+  { href: "/properties",  icon: Building2,       label: "Properties",          adminOnly: false },
+  { href: "/leads",       icon: Target,          label: "Lead Management",     adminOnly: false },
+  { href: "/telecallers", icon: Headphones,      label: "Telecallers",         adminOnly: true  },
+  { href: "/associates",  icon: Users,           label: "Associate Network",   adminOnly: false },
+  { href: "/sales",       icon: TrendingUp,      label: "Sales & Commissions", adminOnly: false },
+  { href: "/settings",    icon: Settings,        label: "Settings",            adminOnly: true  },
 ];
 
 const roleLabel: Record<string, string> = {

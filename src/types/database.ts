@@ -17,18 +17,44 @@ export interface Associate extends Profile {
 }
 
 export interface Lead {
-  id: string; // UUID
+  id: string;
   name: string;
   phone: string;
   email: string;
-  property_id?: string; // UUID
-  property_name?: string; // Denormalized for display
+  property_id?: string;
+  property_name?: string;
   budget: number;
   status: LeadStatus;
   source: string;
-  associate_id: string; // UUID
-  associate_name?: string; // Denormalized
+  associate_id: string;
+  associate_name?: string;
+  telecaller_id?: string;
+  telecaller_name?: string;
+  next_followup_date?: string;
   notes: string;
+  created_at: string;
+}
+
+export interface Telecaller {
+  id: string;
+  full_name: string;
+  phone?: string;
+  username: string;
+  password: string;
+  status: "active" | "inactive";
+  created_at: string;
+}
+
+export interface FollowUp {
+  id: string;
+  lead_id: string;
+  lead_name?: string;
+  telecaller_id?: string;
+  telecaller_name?: string;
+  follow_up_date: string;
+  notes?: string;
+  outcome: "pending" | "called" | "no_answer" | "interested" | "not_interested" | "callback";
+  next_followup_date?: string;
   created_at: string;
 }
 

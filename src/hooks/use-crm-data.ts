@@ -1,15 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
-import { Lead, Property, PlotUnit, LeadStatus } from "@/types/database";
+import { Lead, Property, PlotUnit, LeadStatus, Telecaller, FollowUp } from "@/types/database";
 import { toast } from "sonner";
 
-// Returns the value only if it looks like a real UUID, otherwise null
 function uuidOrNull(v: unknown): string | null {
   if (typeof v !== "string") return null;
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v) ? v : null;
 }
 
-// Server-side mutation helper — uses service role key via API route, bypasses RLS
 async function dbMutate(op: "insert" | "update" | "delete", table: string, data?: Record<string, unknown>, id?: string) {
   const res = await fetch("/api/db", {
     method: "POST",
@@ -21,7 +19,7 @@ async function dbMutate(op: "insert" | "update" | "delete", table: string, data?
   return json;
 }
 
-// ── Mock data (used when Supabase tables don't exist yet) ──────────────────────
+// ── Mock data ──────────────────────────────────────────────────────────────────
 
 const MOCK_PLOT_UNITS: PlotUnit[] = [
   { id: "U-001", property_id: "P-001", unit_number: "A-101", status: "sold", buyer_name: "Rajesh Kumar", price: 8500000, size: "200 sqyd", facing: "East", created_at: "2024-02-15" },
@@ -35,8 +33,8 @@ const MOCK_PLOT_UNITS: PlotUnit[] = [
 ];
 
 const MOCK_LEADS: Lead[] = [
-  { id: "L-001", name: "Suresh Gupta", phone: "+91 98001 23456", email: "suresh@email.com", property_name: "Royal Meadows", budget: 9000000, status: "negotiation", source: "Website", associate_id: "A-001", associate_name: "Rahul Sharma", notes: "Interested in corner plot", created_at: "2024-04-01" },
-  { id: "L-002", name: "Ritu Agarwal", phone: "+91 97002 34567", email: "ritu@email.com", property_name: "Silver Oak", budget: 13000000, status: "site_visit", source: "Referral", associate_id: "A-002", associate_name: "Priya Mehta", notes: "Wants 3BHK", created_at: "2024-04-02" },
+  { id: "L-001", name: "Suresh Gupta", phone: "+91 98001 23456", email: "suresh@email.com", property_name: "Royal Meadows", budget: 9000000, status: "negotiation", source: "Website", associate_id: "A-001", associate_name: "Rahul Sharma", telecaller_id: "TC-001", telecaller_name: "Ramesh Yadav", next_followup_date: "2024-04-12", notes: "Interested in corner plot", created_at: "2024-04-01" },
+  { id: "L-002", name: "Ritu Agarwal", phone: "+91 97002 34567", email: "ritu@email.com", property_name: "Silver Oak", budget: 13000000, status: "site_visit", source: "Referral", associate_id: "A-002", associate_name: "Priya Mehta", telecaller_id: "TC-002", telecaller_name: "Sunita Patel", next_followup_date: "2024-04-15", notes: "Wants 3BHK", created_at: "2024-04-02" },
   { id: "L-003", name: "Manoj Tiwari", phone: "+91 96003 45678", email: "manoj@email.com", property_name: "Green Valley", budget: 22000000, status: "contacted", source: "Walk-in", associate_id: "A-001", associate_name: "Rahul Sharma", notes: "Seen villa B-12", created_at: "2024-04-03" },
   { id: "L-004", name: "Kavita Sharma", phone: "+91 95004 56789", email: "kavita@email.com", property_name: "Palm Grove", budget: 5500000, status: "new", source: "Social Media", associate_id: "A-003", associate_name: "Ram Singh", notes: "", created_at: "2024-04-04" },
   { id: "L-005", name: "Ajay Nair", phone: "+91 94005 67890", email: "ajay@email.com", property_name: "Lotus Park", budget: 7200000, status: "converted", source: "Website", associate_id: "A-002", associate_name: "Priya Mehta", notes: "Closed deal", created_at: "2024-03-22" },
@@ -95,7 +93,17 @@ const MOCK_ASSOCIATES: Associate[] = [
   { id: "A-005", full_name: "Vikram Joshi", email: "vikram@email.com", role: "sub-associate", referral_code: "MG-VJ-005", referred_by: "MG-PM-002", sales: 4, commission: 160000, status: "inactive", created_at: "2024-02-20" },
 ];
 
-// ── Helper ─────────────────────────────────────────────────────────────────────
+const MOCK_TELECALLERS: Telecaller[] = [
+  { id: "TC-001", full_name: "Ramesh Yadav", phone: "+91 99001 11111", username: "ramesh.tc", password: "MG@2024#1", status: "active", created_at: "2024-03-01" },
+  { id: "TC-002", full_name: "Sunita Patel", phone: "+91 99002 22222", username: "sunita.tc", password: "MG@2024#2", status: "active", created_at: "2024-03-05" },
+  { id: "TC-003", full_name: "Arun Kumar", phone: "+91 99003 33333", username: "arun.tc", password: "MG@2024#3", status: "inactive", created_at: "2024-03-10" },
+];
+
+const MOCK_FOLLOWUPS: FollowUp[] = [
+  { id: "FU-001", lead_id: "L-001", lead_name: "Suresh Gupta", telecaller_id: "TC-001", telecaller_name: "Ramesh Yadav", follow_up_date: "2024-04-10", notes: "Interested in corner plot, will call back after Friday", outcome: "callback", next_followup_date: "2024-04-12", created_at: "2024-04-10T10:00:00Z" },
+  { id: "FU-002", lead_id: "L-002", lead_name: "Ritu Agarwal", telecaller_id: "TC-002", telecaller_name: "Sunita Patel", follow_up_date: "2024-04-08", notes: "Site visit scheduled for this weekend", outcome: "interested", next_followup_date: "2024-04-15", created_at: "2024-04-08T14:00:00Z" },
+  { id: "FU-003", lead_id: "L-001", lead_name: "Suresh Gupta", telecaller_id: "TC-001", telecaller_name: "Ramesh Yadav", follow_up_date: "2024-04-05", notes: "First call, introduced ourselves and properties", outcome: "called", created_at: "2024-04-05T11:00:00Z" },
+];
 
 // ── Hook ───────────────────────────────────────────────────────────────────────
 
@@ -104,6 +112,8 @@ export function useCrmData() {
   const [properties, setProperties] = useState<Property[]>([]);
   const [associates, setAssociates] = useState<Associate[]>([]);
   const [sales, setSales] = useState<SaleRecord[]>([]);
+  const [telecallers, setTelecallers] = useState<Telecaller[]>([]);
+  const [followups, setFollowups] = useState<FollowUp[]>([]);
   const [loading, setLoading] = useState(true);
   const [usingMockData, setUsingMockData] = useState(false);
 
@@ -117,76 +127,61 @@ export function useCrmData() {
       .from("leads")
       .select("*")
       .order("created_at", { ascending: false });
-
-    if (error) {
-      setLeads(MOCK_LEADS);
-      setUsingMockData(true);
-    } else {
-      setLeads(data || []);
-    }
+    if (error) { setLeads(MOCK_LEADS); setUsingMockData(true); }
+    else setLeads(data || []);
   }, []);
 
   const fetchProperties = useCallback(async () => {
-    if (!isSupabaseConfigured()) {
-      setProperties(MOCK_PROPERTIES);
-      setUsingMockData(true);
-      return;
-    }
-    const { data, error } = await supabase
-      .from("properties")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      setProperties(MOCK_PROPERTIES);
-      setUsingMockData(true);
-    } else {
-      setProperties(data || []);
-    }
+    if (!isSupabaseConfigured()) { setProperties(MOCK_PROPERTIES); setUsingMockData(true); return; }
+    const { data, error } = await supabase.from("properties").select("*").order("created_at", { ascending: false });
+    if (error) { setProperties(MOCK_PROPERTIES); setUsingMockData(true); }
+    else setProperties(data || []);
   }, []);
 
   const fetchAssociates = useCallback(async () => {
-    if (!isSupabaseConfigured()) {
-      setAssociates(MOCK_ASSOCIATES);
-      setUsingMockData(true);
-      return;
-    }
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .in("role", ["associate", "sub-associate"]);
-
-    if (error) {
-      setAssociates(MOCK_ASSOCIATES);
-      setUsingMockData(true);
-    } else {
-      setAssociates((data as Associate[]) || []);
-    }
+    if (!isSupabaseConfigured()) { setAssociates(MOCK_ASSOCIATES); setUsingMockData(true); return; }
+    const { data, error } = await supabase.from("profiles").select("*").in("role", ["associate", "sub-associate"]);
+    if (error) { setAssociates(MOCK_ASSOCIATES); setUsingMockData(true); }
+    else setAssociates((data as Associate[]) || []);
   }, []);
 
   const fetchSales = useCallback(async () => {
+    if (!isSupabaseConfigured()) { setSales(MOCK_SALES); setUsingMockData(true); return; }
+    const { data, error } = await supabase.from("sales").select("*").order("created_at", { ascending: false });
+    if (error) { setSales(MOCK_SALES); setUsingMockData(true); }
+    else setSales((data as SaleRecord[]) || []);
+  }, []);
+
+  const fetchTelecallers = useCallback(async () => {
     if (!isSupabaseConfigured()) {
-      setSales(MOCK_SALES);
-      setUsingMockData(true);
+      const stored = typeof window !== "undefined" ? localStorage.getItem("mg_telecallers_v1") : null;
+      setTelecallers(stored ? JSON.parse(stored) : MOCK_TELECALLERS);
       return;
     }
-    const { data, error } = await supabase
-      .from("sales")
-      .select("*")
-      .order("created_at", { ascending: false });
-
+    const { data, error } = await supabase.from("telecallers").select("*").order("created_at", { ascending: false });
     if (error) {
-      setSales(MOCK_SALES);
-      setUsingMockData(true);
-    } else {
-      setSales((data as SaleRecord[]) || []);
+      const stored = typeof window !== "undefined" ? localStorage.getItem("mg_telecallers_v1") : null;
+      setTelecallers(stored ? JSON.parse(stored) : MOCK_TELECALLERS);
+    } else setTelecallers(data || []);
+  }, []);
+
+  const fetchFollowups = useCallback(async () => {
+    if (!isSupabaseConfigured()) {
+      const stored = typeof window !== "undefined" ? localStorage.getItem("mg_followups_v1") : null;
+      setFollowups(stored ? JSON.parse(stored) : MOCK_FOLLOWUPS);
+      return;
     }
+    const { data, error } = await supabase.from("lead_followups").select("*").order("created_at", { ascending: false });
+    if (error) {
+      const stored = typeof window !== "undefined" ? localStorage.getItem("mg_followups_v1") : null;
+      setFollowups(stored ? JSON.parse(stored) : MOCK_FOLLOWUPS);
+    } else setFollowups(data || []);
   }, []);
 
   useEffect(() => {
     async function init() {
       setLoading(true);
-      await Promise.all([fetchLeads(), fetchProperties(), fetchAssociates(), fetchSales()]);
+      await Promise.all([fetchLeads(), fetchProperties(), fetchAssociates(), fetchSales(), fetchTelecallers(), fetchFollowups()]);
       setLoading(false);
     }
     init();
@@ -197,11 +192,12 @@ export function useCrmData() {
         .on("postgres_changes", { event: "*", schema: "public", table: "leads" }, fetchLeads)
         .on("postgres_changes", { event: "*", schema: "public", table: "properties" }, fetchProperties)
         .on("postgres_changes", { event: "*", schema: "public", table: "sales" }, fetchSales)
+        .on("postgres_changes", { event: "*", schema: "public", table: "telecallers" }, fetchTelecallers)
+        .on("postgres_changes", { event: "*", schema: "public", table: "lead_followups" }, fetchFollowups)
         .subscribe();
-
       return () => { supabase.removeChannel(channel); };
     }
-  }, [fetchLeads, fetchProperties, fetchAssociates, fetchSales]);
+  }, [fetchLeads, fetchProperties, fetchAssociates, fetchSales, fetchTelecallers, fetchFollowups]);
 
   // ── Leads ──────────────────────────────────────────────────────────────────
 
@@ -231,6 +227,15 @@ export function useCrmData() {
     } catch { toast.error("Failed to update status"); fetchLeads(); }
   };
 
+  const assignLeadToTelecaller = async (leadId: string, telecallerId: string, telecallerName: string) => {
+    setLeads((prev) => prev.map((l) => l.id === leadId ? { ...l, telecaller_id: telecallerId, telecaller_name: telecallerName } : l));
+    if (!isSupabaseConfigured() || usingMockData) { toast.success(`Lead assigned to ${telecallerName} (Demo)`); return; }
+    try {
+      await dbMutate("update", "leads", { telecaller_id: telecallerId, telecaller_name: telecallerName }, leadId);
+      toast.success(`Lead assigned to ${telecallerName}`);
+    } catch { toast.error("Failed to assign lead"); fetchLeads(); }
+  };
+
   const deleteLead = async (id: string) => {
     setLeads((prev) => prev.filter((l) => l.id !== id));
     if (!isSupabaseConfigured() || usingMockData) { toast.success("Lead deleted (Demo Mode)"); return; }
@@ -238,6 +243,89 @@ export function useCrmData() {
       await dbMutate("delete", "leads", undefined, id);
       toast.success("Lead deleted");
     } catch { toast.error("Failed to delete lead"); fetchLeads(); }
+  };
+
+  // ── Follow-ups ─────────────────────────────────────────────────────────────
+
+  const addFollowup = async (newFu: Omit<FollowUp, "id" | "created_at">) => {
+    const fu: FollowUp = { ...newFu, id: `FU-${Date.now()}`, created_at: new Date().toISOString() };
+    const updatedFollowups = [fu, ...followups];
+    setFollowups(updatedFollowups);
+    setLeads((prev) => prev.map((l) => l.id === newFu.lead_id ? {
+      ...l,
+      telecaller_id: newFu.telecaller_id,
+      telecaller_name: newFu.telecaller_name,
+      next_followup_date: newFu.next_followup_date || newFu.follow_up_date,
+    } : l));
+
+    if (!isSupabaseConfigured()) {
+      if (typeof window !== "undefined") localStorage.setItem("mg_followups_v1", JSON.stringify(updatedFollowups));
+      toast.success("Follow-up scheduled");
+      return;
+    }
+    try {
+      await dbMutate("insert", "lead_followups", newFu);
+      await dbMutate("update", "leads", {
+        telecaller_id: newFu.telecaller_id,
+        telecaller_name: newFu.telecaller_name,
+        next_followup_date: newFu.next_followup_date || newFu.follow_up_date,
+      }, newFu.lead_id);
+      toast.success("Follow-up scheduled");
+    } catch (e: any) { toast.error(e.message); }
+  };
+
+  const updateFollowupOutcome = async (id: string, outcome: FollowUp["outcome"], next_followup_date?: string) => {
+    setFollowups((prev) => prev.map((f) => f.id === id ? { ...f, outcome, next_followup_date } : f));
+    if (!isSupabaseConfigured()) return;
+    try {
+      await dbMutate("update", "lead_followups", { outcome, next_followup_date }, id);
+    } catch { toast.error("Failed to update follow-up"); }
+  };
+
+  // ── Telecallers ────────────────────────────────────────────────────────────
+
+  const addTelecaller = async (newTc: Omit<Telecaller, "id" | "created_at">) => {
+    if (!isSupabaseConfigured()) {
+      const tc: Telecaller = { ...newTc, id: `TC-${Date.now()}`, created_at: new Date().toISOString() };
+      const updated = [tc, ...telecallers];
+      setTelecallers(updated);
+      if (typeof window !== "undefined") localStorage.setItem("mg_telecallers_v1", JSON.stringify(updated));
+      toast.success("Telecaller added");
+      return;
+    }
+    try {
+      const { data } = await dbMutate("insert", "telecallers", newTc);
+      setTelecallers((prev) => [data, ...prev]);
+      toast.success("Telecaller added");
+    } catch (e: any) { toast.error(e.message); throw e; }
+  };
+
+  const updateTelecaller = async (id: string, updates: Partial<Telecaller>) => {
+    setTelecallers((prev) => prev.map((t) => t.id === id ? { ...t, ...updates } : t));
+    if (!isSupabaseConfigured()) {
+      if (typeof window !== "undefined") {
+        const updated = telecallers.map((t) => t.id === id ? { ...t, ...updates } : t);
+        localStorage.setItem("mg_telecallers_v1", JSON.stringify(updated));
+      }
+      return;
+    }
+    try {
+      await dbMutate("update", "telecallers", updates as Record<string, unknown>, id);
+    } catch { toast.error("Failed to update telecaller"); fetchTelecallers(); }
+  };
+
+  const deleteTelecaller = async (id: string) => {
+    const updated = telecallers.filter((t) => t.id !== id);
+    setTelecallers(updated);
+    if (!isSupabaseConfigured()) {
+      if (typeof window !== "undefined") localStorage.setItem("mg_telecallers_v1", JSON.stringify(updated));
+      toast.success("Telecaller deleted");
+      return;
+    }
+    try {
+      await dbMutate("delete", "telecallers", undefined, id);
+      toast.success("Telecaller deleted");
+    } catch { toast.error("Failed to delete"); fetchTelecallers(); }
   };
 
   // ── Properties ─────────────────────────────────────────────────────────────
@@ -311,23 +399,18 @@ export function useCrmData() {
   };
 
   return {
-    leads,
-    properties,
-    associates,
-    sales,
-    loading,
-    usingMockData,
-    addLead,
-    updateLeadStatus,
-    deleteLead,
-    addProperty,
-    updateProperty,
-    deleteProperty,
-    addSale,
-    updateSaleStatus,
+    leads, properties, associates, sales, telecallers, followups,
+    loading, usingMockData,
+    addLead, updateLeadStatus, assignLeadToTelecaller, deleteLead,
+    addFollowup, updateFollowupOutcome,
+    addTelecaller, updateTelecaller, deleteTelecaller,
+    addProperty, updateProperty, deleteProperty,
+    addSale, updateSaleStatus,
     refreshLeads: fetchLeads,
     refreshProperties: fetchProperties,
     refreshSales: fetchSales,
+    refreshTelecallers: fetchTelecallers,
+    refreshFollowups: fetchFollowups,
     isLive: isSupabaseConfigured() && !usingMockData,
   };
 }
