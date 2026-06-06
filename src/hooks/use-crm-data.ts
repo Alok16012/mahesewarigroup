@@ -164,30 +164,50 @@ export function useCrmData() {
   }, []);
 
   const fetchTelecallers = useCallback(async () => {
+    const lsKey = "mg_telecallers_v1";
+    const stored = typeof window !== "undefined" ? localStorage.getItem(lsKey) : null;
+    const localData: Telecaller[] = stored ? JSON.parse(stored) : [];
+
     if (!isSupabaseConfigured()) {
-      const stored = typeof window !== "undefined" ? localStorage.getItem("mg_telecallers_v1") : null;
-      setTelecallers(stored ? JSON.parse(stored) : []);
+      setTelecallers(localData);
       return;
     }
     try {
       const data = await dbSelect("telecallers");
-      setTelecallers(data);
+      if (data.length > 0) {
+        setTelecallers(data);
+        if (typeof window !== "undefined") localStorage.setItem(lsKey, JSON.stringify(data));
+      } else if (localData.length > 0) {
+        setTelecallers(localData);
+      } else {
+        setTelecallers([]);
+      }
     } catch {
-      setTelecallers([]);
+      setTelecallers(localData);
     }
   }, []);
 
   const fetchFollowups = useCallback(async () => {
+    const lsKey = "mg_followups_v1";
+    const stored = typeof window !== "undefined" ? localStorage.getItem(lsKey) : null;
+    const localData: FollowUp[] = stored ? JSON.parse(stored) : [];
+
     if (!isSupabaseConfigured()) {
-      const stored = typeof window !== "undefined" ? localStorage.getItem("mg_followups_v1") : null;
-      setFollowups(stored ? JSON.parse(stored) : []);
+      setFollowups(localData);
       return;
     }
     try {
       const data = await dbSelect("lead_followups");
-      setFollowups(data);
+      if (data.length > 0) {
+        setFollowups(data);
+        if (typeof window !== "undefined") localStorage.setItem(lsKey, JSON.stringify(data));
+      } else if (localData.length > 0) {
+        setFollowups(localData);
+      } else {
+        setFollowups([]);
+      }
     } catch {
-      setFollowups([]);
+      setFollowups(localData);
     }
   }, []);
 
@@ -270,21 +290,19 @@ export function useCrmData() {
       telecaller_name: newFu.telecaller_name,
       next_followup_date: newFu.next_followup_date || newFu.follow_up_date,
     } : l));
+    if (typeof window !== "undefined") localStorage.setItem("mg_followups_v1", JSON.stringify(updatedFollowups));
+    toast.success("Follow-up scheduled");
 
-    if (!isSupabaseConfigured()) {
-      if (typeof window !== "undefined") localStorage.setItem("mg_followups_v1", JSON.stringify(updatedFollowups));
-      toast.success("Follow-up scheduled");
-      return;
+    if (isSupabaseConfigured()) {
+      try {
+        await dbMutate("insert", "lead_followups", newFu);
+        await dbMutate("update", "leads", {
+          telecaller_id: newFu.telecaller_id,
+          telecaller_name: newFu.telecaller_name,
+          next_followup_date: newFu.next_followup_date || newFu.follow_up_date,
+        }, newFu.lead_id);
+      } catch { /* local already saved */ }
     }
-    try {
-      await dbMutate("insert", "lead_followups", newFu);
-      await dbMutate("update", "leads", {
-        telecaller_id: newFu.telecaller_id,
-        telecaller_name: newFu.telecaller_name,
-        next_followup_date: newFu.next_followup_date || newFu.follow_up_date,
-      }, newFu.lead_id);
-      toast.success("Follow-up scheduled");
-    } catch (e: any) { toast.error(e.message); }
   };
 
   const updateFollowupOutcome = async (id: string, outcome: FollowUp["outcome"], next_followup_date?: string) => {
@@ -297,50 +315,54 @@ export function useCrmData() {
 
   // ── Telecallers ────────────────────────────────────────────────────────────
 
+  const saveTelecallersToLS = (list: Telecaller[]) => {
+    if (typeof window !== "undefined") localStorage.setItem("mg_telecallers_v1", JSON.stringify(list));
+  };
+
   const addTelecaller = async (newTc: Omit<Telecaller, "id" | "created_at">) => {
-    if (!isSupabaseConfigured()) {
-      const tc: Telecaller = { ...newTc, id: `TC-${Date.now()}`, created_at: new Date().toISOString() };
-      const updated = [tc, ...telecallers];
-      setTelecallers(updated);
-      if (typeof window !== "undefined") localStorage.setItem("mg_telecallers_v1", JSON.stringify(updated));
-      toast.success("Telecaller added");
-      return;
+    const tc: Telecaller = { ...newTc, id: `TC-${Date.now()}`, created_at: new Date().toISOString() };
+    const updated = [tc, ...telecallers];
+    setTelecallers(updated);
+    saveTelecallersToLS(updated);
+    toast.success("Telecaller added");
+
+    if (isSupabaseConfigured()) {
+      try {
+        const { data } = await dbMutate("insert", "telecallers", newTc);
+        const withRealId = updated.map((t) => t.id === tc.id ? (data as Telecaller) : t);
+        setTelecallers(withRealId);
+        saveTelecallersToLS(withRealId);
+      } catch {
+        // localStorage save already done above — silently ignore Supabase error
+      }
     }
-    try {
-      const { data } = await dbMutate("insert", "telecallers", newTc);
-      setTelecallers((prev) => [data, ...prev]);
-      toast.success("Telecaller added");
-    } catch (e: any) { toast.error(e.message); throw e; }
   };
 
   const updateTelecaller = async (id: string, updates: Partial<Telecaller>) => {
-    setTelecallers((prev) => prev.map((t) => t.id === id ? { ...t, ...updates } : t));
-    if (!isSupabaseConfigured()) {
-      if (typeof window !== "undefined") {
-        const updated = telecallers.map((t) => t.id === id ? { ...t, ...updates } : t);
-        localStorage.setItem("mg_telecallers_v1", JSON.stringify(updated));
-      }
-      return;
-    }
+    const updated = telecallers.map((t) => t.id === id ? { ...t, ...updates } : t);
+    setTelecallers(updated);
+    saveTelecallersToLS(updated);
+
+    if (!isSupabaseConfigured()) return;
+    const isRealUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    if (!isRealUUID) return;
     try {
       await dbMutate("update", "telecallers", updates as Record<string, unknown>, id);
-    } catch { toast.error("Failed to update telecaller"); fetchTelecallers(); }
+    } catch { /* local already updated */ }
   };
 
   const deleteTelecaller = async (id: string) => {
     const updated = telecallers.filter((t) => t.id !== id);
     setTelecallers(updated);
-    if (!isSupabaseConfigured()) {
-      if (typeof window !== "undefined") localStorage.setItem("mg_telecallers_v1", JSON.stringify(updated));
-      toast.success("Telecaller deleted");
-      return;
-    }
+    saveTelecallersToLS(updated);
+    toast.success("Telecaller deleted");
+
+    if (!isSupabaseConfigured()) return;
     const isRealUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
-    if (!isRealUUID) { toast.success("Telecaller deleted"); return; }
+    if (!isRealUUID) return;
     try {
       await dbMutate("delete", "telecallers", undefined, id);
-      toast.success("Telecaller deleted");
-    } catch { toast.error("Failed to delete"); fetchTelecallers(); }
+    } catch { /* local already deleted */ }
   };
 
   // ── Properties ─────────────────────────────────────────────────────────────
