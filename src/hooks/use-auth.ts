@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
-export type UserRole = "admin" | "associate" | "sub-associate";
+export type UserRole = "admin" | "associate" | "sub-associate" | "telecaller";
 
 export type CurrentUser = {
   id: string;
@@ -21,6 +21,23 @@ const DEMO_ADMIN: CurrentUser = {
 function getDemoUser(): CurrentUser {
   const role = (typeof window !== "undefined" ? localStorage.getItem("dummy_role") : null) || "admin";
   if (role === "admin") return DEMO_ADMIN;
+
+  if (role === "telecaller") {
+    try {
+      const raw = localStorage.getItem("dummy_telecaller");
+      if (raw) {
+        const t = JSON.parse(raw) as { id: string; full_name: string; username: string };
+        return {
+          id: t.id,
+          email: `${t.username}@telecaller.com`,
+          full_name: t.full_name,
+          role: "telecaller",
+          referral_code: "",
+        };
+      }
+    } catch {}
+    return { id: "TC-001", email: "telecaller@demo.com", full_name: "Demo Telecaller", role: "telecaller", referral_code: "" };
+  }
 
   // Try to get the specific associate who logged in
   try {
@@ -49,6 +66,14 @@ export function useCurrentUser() {
 
   useEffect(() => {
     async function load() {
+      // Check for telecaller session first (they don't use Supabase Auth)
+      const dummyRole = typeof window !== "undefined" ? localStorage.getItem("dummy_role") : null;
+      if (dummyRole === "telecaller") {
+        setUser(getDemoUser());
+        setLoading(false);
+        return;
+      }
+
       if (!isSupabaseConfigured()) {
         setUser(getDemoUser());
         setLoading(false);

@@ -134,33 +134,41 @@ export function useCrmData() {
       setUsingMockData(true);
       return;
     }
-    const { data, error } = await supabase
-      .from("leads")
-      .select("*")
-      .order("created_at", { ascending: false });
-    if (error) { setLeads(MOCK_LEADS); setUsingMockData(true); }
-    else setLeads(data || []);
+    // Read via service-role API: the app uses localStorage auth (no Supabase
+    // session), so a direct anon client read is blocked by RLS and returns [].
+    try {
+      const data = await dbSelect("leads");
+      setLeads(data);
+    } catch {
+      setLeads(MOCK_LEADS);
+      setUsingMockData(true);
+    }
   }, []);
 
+  // Reads go through the service-role API: the app uses localStorage auth (no
+  // Supabase session), so direct anon client reads are blocked by RLS.
   const fetchProperties = useCallback(async () => {
     if (!isSupabaseConfigured()) { setProperties(MOCK_PROPERTIES); setUsingMockData(true); return; }
-    const { data, error } = await supabase.from("properties").select("*").order("created_at", { ascending: false });
-    if (error) { setProperties(MOCK_PROPERTIES); setUsingMockData(true); }
-    else setProperties(data || []);
+    try {
+      const data = await dbSelect("properties");
+      setProperties(data);
+    } catch { setProperties(MOCK_PROPERTIES); setUsingMockData(true); }
   }, []);
 
   const fetchAssociates = useCallback(async () => {
     if (!isSupabaseConfigured()) { setAssociates(MOCK_ASSOCIATES); setUsingMockData(true); return; }
-    const { data, error } = await supabase.from("profiles").select("*").in("role", ["associate", "sub-associate"]);
-    if (error) { setAssociates(MOCK_ASSOCIATES); setUsingMockData(true); }
-    else setAssociates((data as Associate[]) || []);
+    try {
+      const data = await dbSelect("profiles");
+      setAssociates((data as Associate[]).filter((a) => a.role === "associate" || a.role === "sub-associate"));
+    } catch { setAssociates(MOCK_ASSOCIATES); setUsingMockData(true); }
   }, []);
 
   const fetchSales = useCallback(async () => {
     if (!isSupabaseConfigured()) { setSales(MOCK_SALES); setUsingMockData(true); return; }
-    const { data, error } = await supabase.from("sales").select("*").order("created_at", { ascending: false });
-    if (error) { setSales(MOCK_SALES); setUsingMockData(true); }
-    else setSales((data as SaleRecord[]) || []);
+    try {
+      const data = await dbSelect("sales");
+      setSales(data as SaleRecord[]);
+    } catch { setSales(MOCK_SALES); setUsingMockData(true); }
   }, []);
 
   const fetchTelecallers = useCallback(async () => {
@@ -295,7 +303,12 @@ export function useCrmData() {
 
     if (isSupabaseConfigured()) {
       try {
-        await dbMutate("insert", "lead_followups", newFu);
+        // Empty date strings are invalid for a Postgres date column — send null instead.
+        await dbMutate("insert", "lead_followups", {
+          ...newFu,
+          telecaller_id: uuidOrNull(newFu.telecaller_id),
+          next_followup_date: newFu.next_followup_date || null,
+        });
         await dbMutate("update", "leads", {
           telecaller_id: newFu.telecaller_id,
           telecaller_name: newFu.telecaller_name,

@@ -10,6 +10,7 @@ function getAdminClient() {
 
 type Body =
   | { op: "select"; table: string }
+  | { op: "telecaller-login"; username: string; password: string }
   | { op: "insert"; table: string; data: Record<string, unknown> }
   | { op: "update"; table: string; id: string; data: Record<string, unknown> }
   | { op: "delete"; table: string; id: string };
@@ -18,6 +19,18 @@ export async function POST(req: NextRequest) {
   try {
     const admin = getAdminClient();
     const body: Body = await req.json();
+
+    if (body.op === "telecaller-login") {
+      const { data, error } = await admin
+        .from("telecallers")
+        .select("id, full_name, username, status")
+        .eq("username", body.username)
+        .eq("password", body.password)
+        .eq("status", "active")
+        .single();
+      if (error || !data) return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+      return NextResponse.json({ data });
+    }
 
     if (body.op === "select") {
       const { data, error } = await admin

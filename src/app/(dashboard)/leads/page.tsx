@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -16,8 +15,8 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  Target, Plus, Search, Phone, Mail, Building2, IndianRupee,
-  MoreHorizontal, User, Calendar, Headphones, Clock,
+  Plus, Search, Phone, Mail, IndianRupee,
+  User, Calendar, Headphones, Clock, Trash2,
 } from "lucide-react";
 import { useCrmData } from "@/hooks/use-crm-data";
 import { useCurrentUser, getDownlineIds } from "@/hooks/use-auth";
@@ -38,91 +37,9 @@ const formatINR = (v: number) =>
 
 const today = new Date().toISOString().split("T")[0];
 
-function LeadCard({
-  lead, stage, onStatusChange, onAssign, onFollowup,
-}: {
-  lead: Lead;
-  stage: typeof stages[0];
-  onStatusChange: (s: any) => void;
-  onAssign: () => void;
-  onFollowup: () => void;
-}) {
-  const dueToday = lead.next_followup_date === today;
-  const overdue = lead.next_followup_date && lead.next_followup_date < today;
-
-  return (
-    <div className="bg-white rounded-xl p-3.5 border border-border shadow-sm hover:shadow-md transition-shadow cursor-pointer group">
-      <div className="flex items-start justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
-            style={{ background: stage.color, color: stage.textColor }}>
-            {lead.name.charAt(0)}
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-[#1e1b4b]">{lead.name}</p>
-            <p className="text-xs text-muted-foreground">{lead.id}</p>
-          </div>
-        </div>
-        <Select onValueChange={onStatusChange}>
-          <SelectTrigger className="w-6 h-6 p-0 border-0 bg-transparent flex items-center justify-center text-muted-foreground hover:text-[#1e1b4b]">
-            <MoreHorizontal className="w-4 h-4" />
-          </SelectTrigger>
-          <SelectContent>
-            {stages.map((s) => (
-              <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="space-y-1.5 mb-3">
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Building2 className="w-3 h-3 flex-shrink-0" />
-          <span className="truncate">{lead.property_name || "N/A"}</span>
-        </div>
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <IndianRupee className="w-3 h-3 flex-shrink-0" />
-          Budget: <span className="font-medium text-[#1e1b4b]">{formatINR(lead.budget)}</span>
-        </div>
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Phone className="w-3 h-3 flex-shrink-0" />
-          {lead.phone}
-        </div>
-        {lead.telecaller_name && (
-          <div className="flex items-center gap-1.5 text-xs text-[#6366f1]">
-            <Headphones className="w-3 h-3 flex-shrink-0" />
-            {lead.telecaller_name}
-          </div>
-        )}
-      </div>
-
-      {/* Follow-up badge */}
-      {lead.next_followup_date && (
-        <div className={`flex items-center gap-1 text-xs px-2 py-1 rounded-lg mb-2 ${
-          overdue ? "bg-red-50 text-red-600" : dueToday ? "bg-amber-50 text-amber-600" : "bg-blue-50 text-blue-600"
-        }`}>
-          <Clock className="w-3 h-3 flex-shrink-0" />
-          {overdue ? "Overdue: " : dueToday ? "Due today: " : "Followup: "}
-          {lead.next_followup_date}
-        </div>
-      )}
-
-      <div className="flex items-center justify-between pt-2 border-t border-border gap-1">
-        <span className="text-xs text-muted-foreground">{(lead.associate_name || "Admin").split(" ")[0]}</span>
-        <div className="flex gap-1">
-          <button onClick={onAssign}
-            className="text-[10px] px-1.5 py-0.5 rounded-md bg-secondary text-[#6366f1] hover:bg-[#eef2ff] transition-colors font-medium">
-            Assign
-          </button>
-          <button onClick={onFollowup}
-            className="text-[10px] px-1.5 py-0.5 rounded-md bg-secondary text-[#16a34a] hover:bg-[#f0fdf4] transition-colors font-medium">
-            +Followup
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
+// Show a short, human-friendly reference instead of a raw DB UUID.
+const shortId = (id: string) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(id) ? `#${id.slice(0, 8).toUpperCase()}` : id;
 
 export default function LeadsPage() {
   const [search, setSearch] = useState("");
@@ -131,8 +48,12 @@ export default function LeadsPage() {
   const [addOpen, setAddOpen] = useState(false);
   const [assignLead, setAssignLead] = useState<Lead | null>(null);
   const [followupLead, setFollowupLead] = useState<Lead | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Lead | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
   const [bulkAssignOpen, setBulkAssignOpen] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const {
     leads, associates, properties, telecallers, loading,
@@ -142,6 +63,7 @@ export default function LeadsPage() {
 
   const visibleLeads = useMemo(() => {
     if (!user || user.role === "admin") return leads;
+    if (user.role === "telecaller") return leads.filter((l) => l.telecaller_id === user.id);
     const downlineIds = getDownlineIds(user.referral_code, associates);
     const allowedIds = new Set([user.id, ...downlineIds]);
     return leads.filter((l) => allowedIds.has(l.associate_id || ""));
@@ -186,6 +108,16 @@ export default function LeadsPage() {
     setBulkAssignOpen(false);
   };
 
+  const handleBulkDelete = async () => {
+    const ids = Array.from(selectedLeads);
+    setBulkDeleting(true);
+    await Promise.all(ids.map((id) => deleteLead(id)));
+    setBulkDeleting(false);
+    toast.success(`${ids.length} lead${ids.length > 1 ? "s" : ""} deleted`);
+    setSelectedLeads(new Set());
+    setBulkDeleteOpen(false);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -228,7 +160,14 @@ export default function LeadsPage() {
 
             {/* Telecaller filter */}
             {user?.role === "admin" && telecallers.length > 0 && (
-              <Select value={tcFilter} onValueChange={(v) => setTcFilter(v ?? "all")}>
+              <Select
+                items={[
+                  { value: "all", label: "All Telecallers" },
+                  { value: "unassigned", label: "Unassigned" },
+                  ...telecallers.map((t) => ({ value: t.id, label: t.full_name })),
+                ]}
+                value={tcFilter}
+                onValueChange={(v) => setTcFilter(v ?? "all")}>
                 <SelectTrigger className="h-9 w-44 bg-white text-sm">
                   <SelectValue placeholder="All Telecallers" />
                 </SelectTrigger>
@@ -257,6 +196,7 @@ export default function LeadsPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            {user?.role !== "telecaller" && (
             <Dialog open={addOpen} onOpenChange={setAddOpen}>
               <DialogTrigger
                 className="inline-flex items-center gap-2 h-9 px-4 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-90"
@@ -278,6 +218,7 @@ export default function LeadsPage() {
                 </div>
               </DialogContent>
             </Dialog>
+            )}
           </div>
         </div>
 
@@ -297,6 +238,12 @@ export default function LeadsPage() {
               Bulk Assign Telecaller
             </button>
             <button
+              onClick={() => setBulkDeleteOpen(true)}
+              className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-sm font-semibold text-white bg-red-600 hover:bg-red-700 transition-colors">
+              <Trash2 className="w-3.5 h-3.5" />
+              Delete
+            </button>
+            <button
               onClick={() => setSelectedLeads(new Set())}
               className="text-sm text-[#6366f1]/60 hover:text-[#6366f1] transition-colors ml-auto">
               Clear Selection
@@ -304,55 +251,8 @@ export default function LeadsPage() {
           </div>
         )}
 
-        {/* Tabs */}
-        <Tabs defaultValue="kanban">
-          <TabsList className="bg-secondary">
-            <TabsTrigger value="kanban">Pipeline View</TabsTrigger>
-            <TabsTrigger value="table">Table View</TabsTrigger>
-          </TabsList>
-
-          {/* Kanban */}
-          <TabsContent value="kanban" className="mt-4">
-            <div className="flex gap-4 overflow-x-auto pb-4">
-              {stages.map((stage) => {
-                const stageLeads = filtered.filter((l) => l.status === stage.key);
-                return (
-                  <div key={stage.key} className="flex-shrink-0 w-64">
-                    <div className="flex items-center justify-between mb-3 px-1">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full" style={{ background: stage.borderColor }} />
-                        <span className="text-sm font-semibold text-[#1e1b4b]">{stage.label}</span>
-                      </div>
-                      <span className="text-xs font-medium px-2 py-0.5 rounded-full"
-                        style={{ background: stage.color, color: stage.textColor }}>
-                        {stageLeads.length}
-                      </span>
-                    </div>
-                    <div className="min-h-[200px] rounded-xl p-2 space-y-2" style={{ background: stage.color + "80" }}>
-                      {stageLeads.map((lead) => (
-                        <LeadCard
-                          key={lead.id}
-                          lead={lead}
-                          stage={stage}
-                          onStatusChange={(s) => updateLeadStatus(lead.id, s)}
-                          onAssign={() => setAssignLead(lead)}
-                          onFollowup={() => setFollowupLead(lead)}
-                        />
-                      ))}
-                      {stageLeads.length === 0 && (
-                        <div className="flex items-center justify-center h-20 text-xs text-muted-foreground">
-                          No leads here
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </TabsContent>
-
-          {/* Table */}
-          <TabsContent value="table" className="mt-4">
+        {/* Leads table (Excel view) */}
+        <div className="mt-4">
             <Card className="border border-border shadow-sm overflow-hidden">
               <Table>
                 <TableHeader>
@@ -398,7 +298,7 @@ export default function LeadsPage() {
                             </div>
                             <div>
                               <p className="font-semibold text-[#1e1b4b] text-sm">{lead.name}</p>
-                              <p className="text-xs text-muted-foreground">{lead.id}</p>
+                              <p className="text-xs text-muted-foreground">{shortId(lead.id)}</p>
                             </div>
                           </div>
                         </TableCell>
@@ -453,18 +353,25 @@ export default function LeadsPage() {
                               </SelectContent>
                             </Select>
                             {user?.role === "admin" && (
-                              <>
-                                <Button variant="outline" size="sm" className="h-7 w-7 p-0 text-[#6366f1]"
-                                  title="Assign Telecaller"
-                                  onClick={() => setAssignLead(lead)}>
-                                  <Headphones className="w-3 h-3" />
-                                </Button>
-                                <Button variant="outline" size="sm" className="h-7 w-7 p-0 text-[#16a34a]"
-                                  title="Add Follow-up"
-                                  onClick={() => setFollowupLead(lead)}>
-                                  <Calendar className="w-3 h-3" />
-                                </Button>
-                              </>
+                              <Button variant="outline" size="sm" className="h-7 w-7 p-0 text-[#6366f1]"
+                                title="Assign Telecaller"
+                                onClick={() => setAssignLead(lead)}>
+                                <Headphones className="w-3 h-3" />
+                              </Button>
+                            )}
+                            {(user?.role === "admin" || user?.role === "telecaller") && (
+                              <Button variant="outline" size="sm" className="h-7 w-7 p-0 text-[#16a34a]"
+                                title="Add Follow-up"
+                                onClick={() => setFollowupLead(lead)}>
+                                <Calendar className="w-3 h-3" />
+                              </Button>
+                            )}
+                            {user?.role === "admin" && (
+                              <Button variant="outline" size="sm" className="h-7 w-7 p-0 text-red-600"
+                                title="Delete Lead"
+                                onClick={() => setDeleteTarget(lead)}>
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
                             )}
                           </div>
                         </TableCell>
@@ -474,8 +381,7 @@ export default function LeadsPage() {
                 </TableBody>
               </Table>
             </Card>
-          </TabsContent>
-        </Tabs>
+        </div>
       </div>
 
       {/* Assign Telecaller Modal */}
@@ -496,6 +402,7 @@ export default function LeadsPage() {
         <AddFollowupModal
           lead={followupLead}
           telecallers={telecallers}
+          currentUser={user}
           onClose={() => setFollowupLead(null)}
           onSubmit={async (data) => {
             await addFollowup({ ...data, lead_id: followupLead.id, lead_name: followupLead.name });
@@ -512,6 +419,61 @@ export default function LeadsPage() {
           onClose={() => setBulkAssignOpen(false)}
           onAssign={handleBulkAssign}
         />
+      )}
+
+      {/* Bulk Delete Confirmation */}
+      {bulkDeleteOpen && (
+        <Dialog open onOpenChange={() => !bulkDeleting && setBulkDeleteOpen(false)}>
+          <DialogContent size="sm">
+            <DialogHeader>
+              <DialogTitle>Delete {selectedLeads.size} Lead{selectedLeads.size > 1 ? "s" : ""}</DialogTitle>
+            </DialogHeader>
+            <div className="px-6 py-5">
+              <p className="text-sm text-muted-foreground">
+                Are you sure you want to delete{" "}
+                <span className="font-semibold text-[#1e1b4b]">{selectedLeads.size} selected lead{selectedLeads.size > 1 ? "s" : ""}</span>? This action cannot be undone.
+              </p>
+              <div className="flex gap-3 pt-5">
+                <Button variant="outline" type="button" className="flex-1" disabled={bulkDeleting}
+                  onClick={() => setBulkDeleteOpen(false)}>Cancel</Button>
+                <Button type="button" className="flex-1 bg-red-600 hover:bg-red-700 text-white" disabled={bulkDeleting}
+                  onClick={handleBulkDelete}>
+                  {bulkDeleting ? "Deleting..." : `Delete ${selectedLeads.size}`}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Delete Lead Confirmation */}
+      {deleteTarget && (
+        <Dialog open onOpenChange={() => !deleting && setDeleteTarget(null)}>
+          <DialogContent size="sm">
+            <DialogHeader>
+              <DialogTitle>Delete Lead</DialogTitle>
+            </DialogHeader>
+            <div className="px-6 py-5">
+              <p className="text-sm text-muted-foreground">
+                Are you sure you want to delete{" "}
+                <span className="font-semibold text-[#1e1b4b]">{deleteTarget.name}</span>? This action cannot be undone.
+              </p>
+              <div className="flex gap-3 pt-5">
+                <Button variant="outline" type="button" className="flex-1" disabled={deleting}
+                  onClick={() => setDeleteTarget(null)}>Cancel</Button>
+                <Button type="button" className="flex-1 bg-red-600 hover:bg-red-700 text-white" disabled={deleting}
+                  onClick={async () => {
+                    setDeleting(true);
+                    await deleteLead(deleteTarget.id);
+                    setDeleting(false);
+                    setDeleteTarget(null);
+                  }}>
+                  {deleting ? "Deleting..." : "Delete"}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );
@@ -671,7 +633,7 @@ function AssignTelecallerModal({ lead, telecallers, onClose, onAssign }: {
           <form className="space-y-4" onSubmit={handleSubmit}>
             <div className="space-y-1.5">
               <Label className="text-sm font-medium text-[#1e1b4b]">Select Telecaller</Label>
-              <Select value={selected} onValueChange={(v) => setSelected(v ?? "")}>
+              <Select items={activeTelecallers.map((t) => ({ value: t.id, label: t.full_name }))} value={selected} onValueChange={(v) => setSelected(v ?? "")}>
                 <SelectTrigger className="h-10">
                   <SelectValue placeholder="Choose telecaller..." />
                 </SelectTrigger>
@@ -714,15 +676,17 @@ function AssignTelecallerModal({ lead, telecallers, onClose, onAssign }: {
 
 // ── Add Follow-up Modal ───────────────────────────────────────────────────────
 
-function AddFollowupModal({ lead, telecallers, onClose, onSubmit }: {
+function AddFollowupModal({ lead, telecallers, currentUser, onClose, onSubmit }: {
   lead: Lead;
   telecallers: any[];
+  currentUser: { id: string; full_name: string; role: string } | null;
   onClose: () => void;
   onSubmit: (data: Omit<FollowUp, "id" | "created_at" | "lead_id" | "lead_name">) => Promise<void>;
 }) {
+  const isTelecaller = currentUser?.role === "telecaller";
   const [form, setForm] = useState({
-    telecaller_id: lead.telecaller_id || "",
-    telecaller_name: lead.telecaller_name || "",
+    telecaller_id: isTelecaller ? currentUser!.id : (lead.telecaller_id || ""),
+    telecaller_name: isTelecaller ? currentUser!.full_name : (lead.telecaller_name || ""),
     follow_up_date: today,
     notes: "",
     outcome: "called" as FollowUp["outcome"],
@@ -766,16 +730,23 @@ function AddFollowupModal({ lead, telecallers, onClose, onSubmit }: {
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-sm font-medium text-[#1e1b4b]">Telecaller</Label>
-                <Select value={form.telecaller_id} onValueChange={(v) => v && handleTelecallerChange(v)}>
-                  <SelectTrigger className="h-10">
-                    <SelectValue placeholder="Select telecaller" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {telecallers.filter((t) => t.status === "active").map((t) => (
-                      <SelectItem key={t.id} value={t.id}>{t.full_name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {isTelecaller ? (
+                  <div className="h-10 flex items-center gap-1.5 px-3 rounded-lg border border-border bg-secondary/40 text-sm text-[#1e1b4b]">
+                    <Headphones className="w-3.5 h-3.5 text-[#6366f1]" />
+                    {form.telecaller_name}
+                  </div>
+                ) : (
+                  <Select items={telecallers.filter((t) => t.status === "active").map((t) => ({ value: t.id, label: t.full_name }))} value={form.telecaller_id} onValueChange={(v) => v && handleTelecallerChange(v)}>
+                    <SelectTrigger className="h-10">
+                      <SelectValue placeholder="Select telecaller" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {telecallers.filter((t) => t.status === "active").map((t) => (
+                        <SelectItem key={t.id} value={t.id}>{t.full_name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label className="text-sm font-medium text-[#1e1b4b]">Follow-up Date *</Label>
@@ -863,7 +834,7 @@ function BulkAssignModal({ count, telecallers, onClose, onAssign }: {
           <form className="space-y-4" onSubmit={handleSubmit}>
             <div className="space-y-1.5">
               <Label className="text-sm font-medium text-[#1e1b4b]">Select Telecaller *</Label>
-              <Select value={selected} onValueChange={(v) => setSelected(v ?? "")}>
+              <Select items={active.map((t) => ({ value: t.id, label: t.full_name }))} value={selected} onValueChange={(v) => setSelected(v ?? "")}>
                 <SelectTrigger className="h-10">
                   <SelectValue placeholder="Choose telecaller..." />
                 </SelectTrigger>

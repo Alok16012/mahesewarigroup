@@ -211,8 +211,8 @@ function AssociateNode({
           <Copy className="w-3 h-3" /> Invite
         </button>
 
-        {/* add sub-associate button — admin only */}
-        {isAdmin && canCreate && (
+        {/* add sub-associate button — admin or associate (within their own network) */}
+        {canCreate && (
           <button
             onClick={() => onAdd(associate)}
             className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-xs font-medium text-[#6366f1] bg-[#eef2ff] hover:bg-[#e0e7ff] px-2 py-1 rounded-lg"
@@ -257,15 +257,20 @@ function AddAssociateDialog({
   open,
   defaultParent,
   allAssociates,
+  isAdmin,
+  selfId,
   onClose,
   onAdd,
 }: {
   open: boolean;
   defaultParent: Associate | null;
 allAssociates: Associate[];
+  isAdmin: boolean;
+  selfId: string | null;
   onClose: () => void;
   onAdd: (data: Omit<Associate, "id" | "referralCode">, creds: { username: string; password: string }) => void;
 }) {
+  const fallbackParent = isAdmin ? "admin" : (selfId ?? "admin");
   const [showPassword, setShowPassword] = useState(false);
   const [form, setForm] = useState({
     name: "",
@@ -273,16 +278,32 @@ allAssociates: Associate[];
     phone: "",
     username: "",
     password: "",
-    parentId: defaultParent?.id ?? "admin",
+    parentId: defaultParent?.id ?? fallbackParent,
     status: "active" as AssociateStatus,
   });
 
   // Sync parent selection when dialog is opened from a different node
   useEffect(() => {
-    setForm((prev) => ({ ...prev, parentId: defaultParent?.id ?? "admin" }));
-  }, [defaultParent, open]);
+    setForm((prev) => ({ ...prev, parentId: defaultParent?.id ?? fallbackParent }));
+  }, [defaultParent, open, fallbackParent]);
 
-  const eligibleParents = allAssociates.filter((a) => a.level < 3 && a.status === "active");
+  // Non-admin associates may only recruit under themselves or their own downline.
+  const allowedParentIds = useMemo(() => {
+    if (isAdmin || !selfId) return null;
+    const ids = new Set<string>([selfId]);
+    const addDown = (id: string) => {
+      allAssociates.filter((a) => a.parentId === id).forEach((c) => {
+        ids.add(c.id);
+        addDown(c.id);
+      });
+    };
+    addDown(selfId);
+    return ids;
+  }, [isAdmin, selfId, allAssociates]);
+
+  const eligibleParents = allAssociates.filter(
+    (a) => a.level < 3 && a.status === "active" && (!allowedParentIds || allowedParentIds.has(a.id))
+  );
 
   const resolveParent = (parentId: string) => {
     if (parentId === "admin") return { name: "Admin", level: 0 };
@@ -335,7 +356,7 @@ allAssociates: Associate[];
   };
 
   const handleClose = () => {
-    setForm({ name: "", email: "", phone: "", username: "", password: "", parentId: "admin", status: "active" });
+    setForm({ name: "", email: "", phone: "", username: "", password: "", parentId: fallbackParent, status: "active" });
     onClose();
   };
 
@@ -368,7 +389,7 @@ allAssociates: Associate[];
                 <SelectValue placeholder="Select referrer" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="admin">Admin (Maheshwari Group)</SelectItem>
+                {isAdmin && <SelectItem value="admin">Admin (Maheshwari Group)</SelectItem>}
                 {eligibleParents.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
                     {p.name} — L{p.level} [{p.referralCode}]
@@ -726,6 +747,13 @@ export default function AssociatesPage() {
   const l3 = visibleAssociates.filter((a) => a.level === 3);
   const active = visibleAssociates.filter((a) => a.status === "active");
 
+  // The logged-in associate's own record (non-admin). Used to let them recruit under themselves.
+  const currentUserAssociate = useMemo(
+    () => (isAdmin ? null : associates.find((a) => a.id === user?.id) ?? null),
+    [isAdmin, associates, user]
+  );
+  const canSelfRecruit = !!currentUserAssociate && currentUserAssociate.level < 3;
+
   const openAddFor = (parent: Associate | null) => {
     setAddParent(parent);
     setAddDialogOpen(true);
@@ -779,14 +807,21 @@ export default function AssociatesPage() {
               : `${user?.full_name} · ${visibleAssociates.length} team member${visibleAssociates.length !== 1 ? "s" : ""} in your network`}
           </p>
         </div>
-        {isAdmin && (
+        {isAdmin ? (
           <Button
             onClick={() => openAddFor(null)}
             className="h-10 px-4 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 shadow-md flex items-center gap-2"
           >
             <Plus className="w-4 h-4" /> Add Associate
           </Button>
-        )}
+        ) : canSelfRecruit ? (
+          <Button
+            onClick={() => openAddFor(currentUserAssociate)}
+            className="h-10 px-4 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 shadow-md flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" /> Add Sub-Associate
+          </Button>
+        ) : null}
       </div>
 
       {/* Commission structure banner */}
@@ -999,7 +1034,7 @@ export default function AssociatesPage() {
                     "Sales",
                     "Commission",
                     "Status",
-                    ...(isAdmin ? ["Actions"] : []),
+                    "Actions",
                   ].map((h) => (
                     <TableHead key={h} className="font-semibold text-[#1e1b4b] text-xs">
                       {h}
@@ -1098,24 +1133,24 @@ export default function AssociatesPage() {
                           {sc.label}
                         </Badge>
                       </TableCell>
-                      {/* Actions — admin only */}
-                      {isAdmin && (
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            {canCreate ? (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-7 text-xs px-2 text-indigo-600 border-indigo-200 hover:bg-indigo-50"
-                                onClick={() => openAddFor(associate)}
-                              >
-                                <Plus className="w-3 h-3 mr-1" /> Add Below
-                              </Button>
-                            ) : (
-                              <span className="text-[10px] text-orange-400 flex items-center gap-1 px-2">
-                                <Lock className="w-3 h-3" /> Leaf node
-                              </span>
-                            )}
+                      {/* Actions — Add Below for admin & associate; delete admin only */}
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          {canCreate ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 text-xs px-2 text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+                              onClick={() => openAddFor(associate)}
+                            >
+                              <Plus className="w-3 h-3 mr-1" /> Add Below
+                            </Button>
+                          ) : (
+                            <span className="text-[10px] text-orange-400 flex items-center gap-1 px-2">
+                              <Lock className="w-3 h-3" /> Leaf node
+                            </span>
+                          )}
+                          {isAdmin && (
                             <Button
                               variant="ghost"
                               size="sm"
@@ -1124,9 +1159,9 @@ export default function AssociatesPage() {
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </Button>
-                          </div>
-                        </TableCell>
-                      )}
+                          )}
+                        </div>
+                      </TableCell>
                     </TableRow>
                   );
                 })}
@@ -1141,6 +1176,8 @@ export default function AssociatesPage() {
         open={addDialogOpen}
         defaultParent={addParent}
         allAssociates={associates}
+        isAdmin={!!isAdmin}
+        selfId={user?.id ?? null}
         onClose={() => setAddDialogOpen(false)}
         onAdd={handleAddAssociate}
       />

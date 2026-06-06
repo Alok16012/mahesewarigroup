@@ -9,54 +9,21 @@ import {
 } from "recharts";
 import {
   Users, Building2, TrendingUp, Wallet, Target,
-  ArrowUpRight, ArrowDownRight, Clock, CheckCircle2,
-  ChevronRight, Star, IndianRupee,
+  Clock, CheckCircle2, ChevronRight, Star, IndianRupee,
 } from "lucide-react";
-
-const salesData = [
-  { month: "Oct", sales: 12, commissions: 480000 },
-  { month: "Nov", sales: 18, commissions: 720000 },
-  { month: "Dec", sales: 15, commissions: 600000 },
-  { month: "Jan", sales: 22, commissions: 880000 },
-  { month: "Feb", sales: 28, commissions: 1120000 },
-  { month: "Mar", sales: 35, commissions: 1400000 },
-  { month: "Apr", sales: 30, commissions: 1200000 },
-];
-
-const pieData = [
-  { name: "Available", value: 320, color: "#22c55e" },
-  { name: "Reserved", value: 85, color: "#f59e0b" },
-  { name: "Sold", value: 212, color: "#6366f1" },
-];
-
-const topAssociates = [
-  { name: "Rahul Sharma", sales: 24, commission: 960000, trend: "+18%" },
-  { name: "Priya Mehta", sales: 18, commission: 720000, trend: "+12%" },
-  { name: "Amit Kumar", sales: 12, commission: 480000, trend: "+8%" },
-  { name: "Sneha Reddy", sales: 9, commission: 360000, trend: "+5%" },
-];
-
-const recentSales = [
-  { property: "Royal Meadows - Plot A-204", associate: "Rahul Sharma", amount: 8500000, status: "approved", date: "Apr 8" },
-  { property: "Silver Oak - Plot C-88", associate: "Priya Mehta", amount: 12000000, status: "pending", date: "Apr 6" },
-  { property: "Green Valley - Villa B-12", associate: "Amit Kumar", amount: 22000000, status: "approved", date: "Apr 2" },
-  { property: "Lotus Park - Plot E-19", associate: "Vikram Patel", amount: 7200000, status: "approved", date: "Mar 22" },
-];
-
-const priorityTasks = [
-  { title: "Approve 2 pending sales", due: "Today", done: "0/2", icon: CheckCircle2, color: "#6366f1" },
-  { title: "Process commission payouts", due: "Apr 11", done: "3/8 paid", icon: Wallet, color: "#14b8a6" },
-  { title: "Review new associate registrations", due: "Apr 12", done: "2/5 reviewed", icon: Users, color: "#f59e0b" },
-  { title: "Follow up on stale leads", due: "Apr 13", done: "12/28 contacted", icon: Target, color: "#ec4899" },
-];
+import { useCrmData } from "@/hooks/use-crm-data";
 
 const formatINR = (v: number) =>
   v >= 10000000 ? `₹${(v / 10000000).toFixed(1)}Cr` : `₹${(v / 100000).toFixed(0)}L`;
 
-import { useCrmData } from "@/hooks/use-crm-data";
+const STATUS_COLORS: Record<string, string> = {
+  available: "#22c55e",
+  reserved: "#f59e0b",
+  sold: "#6366f1",
+};
 
 export default function DashboardPage() {
-  const { leads, loading } = useCrmData();
+  const { leads, properties, associates, sales, telecallers, loading } = useCrmData();
 
   if (loading) {
     return (
@@ -66,22 +33,83 @@ export default function DashboardPage() {
     );
   }
 
-  // Aggregate stats from leads
-  const totalLeads = leads.length;
-  const convertedLeads = leads.filter(l => l.status === "converted").length;
-  const inProgressLeads = leads.filter(l => ["contacted", "site_visit", "negotiation"].includes(l.status)).length;
-  const newLeadsThisMonth = leads.filter(l => l.status === "new").length; // Simplified for now
+  const todayStr = new Date().toISOString().split("T")[0];
 
-  // Format INR helper
-  const formatINR = (v: number) =>
-    v >= 10000000 ? `₹${(v / 10000000).toFixed(1)}Cr` : `₹${(v / 100000).toFixed(0)}L`;
+  // ── Leads ──
+  const totalLeads = leads.length;
+  const convertedLeads = leads.filter((l) => l.status === "converted").length;
+  const inProgressLeads = leads.filter((l) => ["contacted", "site_visit", "negotiation"].includes(l.status)).length;
+  const newLeads = leads.filter((l) => l.status === "new").length;
+  const conversionRate = totalLeads ? Math.round((convertedLeads / totalLeads) * 100) : 0;
+  const overdueFollowups = leads.filter((l) => l.next_followup_date && l.next_followup_date < todayStr).length;
+  const dueTodayFollowups = leads.filter((l) => l.next_followup_date === todayStr).length;
+
+  // ── Properties ──
+  const totalProps = properties.length;
+  const availableProps = properties.filter((p) => p.status === "available").length;
+  const pieData = ["available", "reserved", "sold"]
+    .map((st) => ({
+      name: st.charAt(0).toUpperCase() + st.slice(1),
+      value: properties.filter((p) => p.status === st).length,
+      color: STATUS_COLORS[st],
+    }))
+    .filter((d) => d.value > 0);
+
+  // ── Telecallers ──
+  const activeTelecallers = telecallers.filter((t) => t.status === "active").length;
+
+  // ── Sales ──
+  const approvedSales = sales.filter((s) => s.status === "approved");
+  const pendingSales = sales.filter((s) => s.status === "pending");
+  const totalSalesValue = approvedSales.reduce((sum, s) => sum + (s.sale_amount || 0), 0);
+
+  // Last 7 months revenue from real sales
+  const now = new Date();
+  const salesData = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - (6 - i), 1);
+    const key = `${d.getFullYear()}-${d.getMonth()}`;
+    const monthSales = sales.filter((s) => {
+      const sd = new Date(s.sale_date || s.created_at);
+      return `${sd.getFullYear()}-${sd.getMonth()}` === key;
+    });
+    return {
+      month: d.toLocaleString("en-US", { month: "short" }),
+      sales: monthSales.length,
+      commissions: monthSales.reduce((x, s) => x + (s.commission_amount || 0), 0),
+    };
+  });
+
+  const recentSales = [...sales]
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, 4)
+    .map((s) => ({
+      property: s.property_name,
+      associate: s.associate_name || "—",
+      amount: s.sale_amount,
+      status: s.status,
+      date: new Date(s.sale_date || s.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+    }));
+
+  // ── Associates ──
+  const topAssociates = [...associates]
+    .sort((a, b) => (b.commission || 0) - (a.commission || 0))
+    .slice(0, 4)
+    .map((a) => ({ name: a.full_name, sales: a.sales || 0, commission: a.commission || 0 }));
+
+  // ── Priority tasks (derived from real data) ──
+  const priorityTasks = [
+    { title: "Approve pending sales", due: "Today", done: `${pendingSales.length} pending`, icon: CheckCircle2, color: "#6366f1" },
+    { title: "Contact new leads", due: "Today", done: `${newLeads} new`, icon: Target, color: "#ec4899" },
+    { title: "Overdue follow-ups", due: "Now", done: `${overdueFollowups} overdue`, icon: Clock, color: "#f59e0b" },
+    { title: "Follow-ups due today", due: "Today", done: `${dueTodayFollowups} due`, icon: Wallet, color: "#14b8a6" },
+  ];
 
   const statCards = [
-    { title: "Total Brokers", value: "1,284", change: "+12%", up: true, sub: "48 new this month", icon: Users, color: "#6366f1", bg: "#ede9fe" },
-    { title: "Properties Listed", value: "617", change: "+8%", up: true, sub: "320 available now", icon: Building2, color: "#14b8a6", bg: "#ccfbf1" },
-    { title: "Sales This Month", value: "₹4.8Cr", change: "+23%", up: true, sub: "35 transactions", icon: TrendingUp, color: "#22c55e", bg: "#dcfce7" },
-    { title: "Total Leads", value: totalLeads.toString(), change: "+17%", up: true, sub: `${newLeadsThisMonth} new leads`, icon: Target, color: "#ec4899", bg: "#fce7f3" },
-    { title: "Active Contacts", value: inProgressLeads.toString(), change: "+5%", up: true, sub: "In pipeline", icon: Clock, color: "#6366f1", bg: "#eef2ff" },
+    { title: "Total Leads", value: totalLeads.toString(), sub: `${newLeads} new`, icon: Target, color: "#ec4899", bg: "#fce7f3" },
+    { title: "Converted", value: convertedLeads.toString(), sub: `${conversionRate}% conversion`, icon: CheckCircle2, color: "#22c55e", bg: "#dcfce7" },
+    { title: "Properties", value: totalProps.toString(), sub: `${availableProps} available`, icon: Building2, color: "#14b8a6", bg: "#ccfbf1" },
+    { title: "Telecallers", value: telecallers.length.toString(), sub: `${activeTelecallers} active`, icon: Users, color: "#6366f1", bg: "#ede9fe" },
+    { title: "Sales Value", value: totalSalesValue ? formatINR(totalSalesValue) : "₹0", sub: `${sales.length} deals`, icon: TrendingUp, color: "#6366f1", bg: "#eef2ff" },
   ];
 
   return (
@@ -108,10 +136,6 @@ export default function DashboardPage() {
                 <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ background: card.bg }}>
                   <Icon className="w-5 h-5" style={{ color: card.color }} />
                 </div>
-                <span className={`flex items-center gap-0.5 text-xs font-semibold ${card.up ? "text-green-500" : "text-red-400"}`}>
-                  {card.up ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                  {card.change}
-                </span>
               </div>
               <p className="text-2xl font-bold text-[#1e1b4b] mb-0.5">{card.value}</p>
               <p className="text-xs font-medium text-gray-500">{card.title}</p>
@@ -174,26 +198,32 @@ export default function DashboardPage() {
         {/* Property Status Pie */}
         <Card className="p-5 bg-white border-0 shadow-sm rounded-2xl">
           <h3 className="font-bold text-[#1e1b4b] mb-1">Property Status</h3>
-          <p className="text-xs text-gray-400 mb-4">617 total listings</p>
-          <ResponsiveContainer width="100%" height={160}>
-            <PieChart>
-              <Pie data={pieData} cx="50%" cy="50%" innerRadius={50} outerRadius={72} paddingAngle={4} dataKey="value">
-                {pieData.map((e, i) => <Cell key={i} fill={e.color} />)}
-              </Pie>
-              <Tooltip contentStyle={{ borderRadius: 10, border: "none", boxShadow: "0 4px 16px rgba(0,0,0,0.08)", fontSize: 12 }} />
-            </PieChart>
-          </ResponsiveContainer>
-          <div className="space-y-2 mt-3">
-            {pieData.map((item) => (
-              <div key={item.name} className="flex items-center justify-between">
-                <span className="flex items-center gap-2 text-xs text-gray-500">
-                  <span className="w-2.5 h-2.5 rounded-full" style={{ background: item.color }} />
-                  {item.name}
-                </span>
-                <span className="text-xs font-bold text-[#1e1b4b]">{item.value} <span className="text-gray-400 font-normal">({Math.round(item.value/617*100)}%)</span></span>
+          <p className="text-xs text-gray-400 mb-4">{totalProps} total listings</p>
+          {totalProps === 0 ? (
+            <div className="flex items-center justify-center h-[160px] text-xs text-gray-400">No properties yet</div>
+          ) : (
+            <>
+              <ResponsiveContainer width="100%" height={160}>
+                <PieChart>
+                  <Pie data={pieData} cx="50%" cy="50%" innerRadius={50} outerRadius={72} paddingAngle={4} dataKey="value">
+                    {pieData.map((e, i) => <Cell key={i} fill={e.color} />)}
+                  </Pie>
+                  <Tooltip contentStyle={{ borderRadius: 10, border: "none", boxShadow: "0 4px 16px rgba(0,0,0,0.08)", fontSize: 12 }} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="space-y-2 mt-3">
+                {pieData.map((item) => (
+                  <div key={item.name} className="flex items-center justify-between">
+                    <span className="flex items-center gap-2 text-xs text-gray-500">
+                      <span className="w-2.5 h-2.5 rounded-full" style={{ background: item.color }} />
+                      {item.name}
+                    </span>
+                    <span className="text-xs font-bold text-[#1e1b4b]">{item.value} <span className="text-gray-400 font-normal">({Math.round(item.value / totalProps * 100)}%)</span></span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </>
+          )}
         </Card>
       </div>
 
@@ -208,6 +238,9 @@ export default function DashboardPage() {
             </button>
           </div>
           <div className="space-y-3">
+            {recentSales.length === 0 && (
+              <div className="flex items-center justify-center h-24 text-xs text-gray-400">No sales recorded yet</div>
+            )}
             {recentSales.map((sale, i) => (
               <div key={i} className="flex items-start gap-3 p-3 rounded-xl hover:bg-[#f5f3ff] transition-colors cursor-pointer">
                 <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
@@ -236,6 +269,9 @@ export default function DashboardPage() {
             <Badge className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: "#ede9fe", color: "#6366f1" }}>This Month</Badge>
           </div>
           <div className="space-y-3">
+            {topAssociates.length === 0 && (
+              <div className="flex items-center justify-center h-24 text-xs text-gray-400">No associates yet</div>
+            )}
             {topAssociates.map((associate, i) => (
               <div key={i} className="flex items-center gap-3">
                 <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${i === 0 ? "bg-amber-100 text-amber-600" : "bg-[#ede9fe] text-[#6366f1]"}`}>
@@ -247,7 +283,6 @@ export default function DashboardPage() {
                 </div>
                 <div className="text-right flex-shrink-0">
                   <p className="text-xs font-bold text-[#6366f1]">{associate.sales} sales</p>
-                  <p className="text-[10px] text-green-500">{associate.trend}</p>
                 </div>
               </div>
             ))}
@@ -281,7 +316,7 @@ export default function DashboardPage() {
           {/* Quick action */}
           <div className="mt-4 p-3 rounded-xl border border-dashed border-[#c4b5fd] bg-[#faf5ff]">
             <p className="text-xs font-medium text-[#6366f1] mb-1">💡 Quick Action</p>
-            <p className="text-[11px] text-gray-500 mb-2">2 sales are waiting for your approval</p>
+            <p className="text-[11px] text-gray-500 mb-2">{pendingSales.length} sale{pendingSales.length === 1 ? "" : "s"} waiting for your approval</p>
             <Button className="w-full h-7 text-xs rounded-lg" style={{ background: "#6366f1", color: "white" }}>
               Review Sales →
             </Button>

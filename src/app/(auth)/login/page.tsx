@@ -15,23 +15,10 @@ const ADMIN_EMAIL = "admin@masheuri.com";
 const ADMIN_PASSWORD = "admin123";
 const ASSOCIATES_KEY = "mg_associates_v2";
 
-// Hardcoded seed credentials — always available even if localStorage is empty/stale
-const SEED_CREDS: Array<{ username: string; password: string; name: string; level: number }> = [
-  { username: "alok.kumar",    password: "Alok@1234",  name: "Alok Kumar",    level: 1 },
-  { username: "priya.mehta",   password: "Priya@1234", name: "Priya Mehta",   level: 1 },
-  { username: "ram.singh",     password: "Ram@1234",   name: "Ram Singh",     level: 2 },
-  { username: "subham.gupta",  password: "Sub@1234",   name: "Subham Gupta",  level: 2 },
-  { username: "vikram.joshi",  password: "Vik@1234",   name: "Vikram Joshi",  level: 2 },
-  { username: "amar.patel",    password: "Amar@1234",  name: "Amar Patel",    level: 3 },
-  { username: "geeta.sharma",  password: "Geet@1234",  name: "Geeta Sharma",  level: 3 },
-  { username: "deepika.rao",   password: "Deep@1234",  name: "Deepika Rao",   level: 3 },
-  { username: "sneha.reddy",   password: "Sneh@1234",  name: "Sneha Reddy",   level: 3 },
-];
-
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
-  const [email, setEmail] = useState(ADMIN_EMAIL);
-  const [password, setPassword] = useState(ADMIN_PASSWORD);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
@@ -40,7 +27,7 @@ export default function LoginPage() {
     associateData?: { id: string; name: string; referralCode: string; username: string }
   ) => {
     setLoading(true);
-    toast.success(`Welcome${associateData ? ", " + associateData.name : ""}! (Demo Mode)`);
+    toast.success(`Welcome${associateData ? ", " + associateData.name : ""}!`);
     if (typeof window !== "undefined") {
       localStorage.setItem("dummy_role", role.toLowerCase());
       if (associateData) {
@@ -64,10 +51,9 @@ export default function LoginPage() {
       return handleDummyLogin("Admin");
     }
 
-    // 2. Username-based login — check localStorage then seed fallback
+    // 2. Username-based login — check localStorage associates
     const isUsername = !email.includes("@");
     if (isUsername) {
-      // Build full associate list from localStorage (has id, referralCode etc.)
       let allAssociates: Array<{ id: string; name: string; level: number; referralCode: string; username?: string; password?: string }> = [];
       try {
         const stored = localStorage.getItem(ASSOCIATES_KEY);
@@ -76,17 +62,7 @@ export default function LoginPage() {
           if (parsed.length > 0 && parsed[0].username) allAssociates = parsed;
         }
       } catch {}
-      // Fall back to seed if no localStorage data with credentials
-      if (allAssociates.length === 0) {
-        allAssociates = SEED_CREDS.map((s, i) => ({
-          id: `A-${String(i + 1).padStart(3, "0")}`,
-          name: s.name,
-          level: s.level,
-          referralCode: `MG-${s.username.split(".").map(w => w[0].toUpperCase()).join("")}-${String(i + 1).padStart(3, "0")}`,
-          username: s.username,
-          password: s.password,
-        }));
-      }
+
       const match = allAssociates.find((a) => a.username === email && a.password === password);
       if (match) {
         const role = match.level === 1 ? "associate" : "sub-associate";
@@ -97,12 +73,33 @@ export default function LoginPage() {
           username: match.username!,
         });
       }
+
+      // 3. Telecaller login — check telecallers table via API
+      try {
+        const res = await fetch("/api/db", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ op: "telecaller-login", username: email, password }),
+        });
+        const json = await res.json();
+        if (res.ok && json.data) {
+          const tc = json.data as { id: string; full_name: string; username: string };
+          if (typeof window !== "undefined") {
+            localStorage.setItem("dummy_role", "telecaller");
+            localStorage.setItem("dummy_telecaller", JSON.stringify(tc));
+          }
+          toast.success(`Welcome, ${tc.full_name}!`);
+          setTimeout(() => { router.push("/dashboard"); setLoading(false); }, 800);
+          return;
+        }
+      } catch {}
+
       toast.error("Invalid credentials", { description: "Username or password is incorrect." });
       setLoading(false);
       return;
     }
 
-    // 3. Supabase auth (email-based)
+    // 4. Supabase auth (email-based)
     if (!isSupabaseConfigured()) {
       toast.info("Supabase not configured — entering Demo Mode.");
       setTimeout(() => { router.push("/dashboard"); setLoading(false); }, 800);
@@ -128,7 +125,6 @@ export default function LoginPage() {
     <div className="min-h-screen flex" style={{ background: "#eeeeff" }}>
       {/* Left Panel */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden flex-col justify-between p-12">
-        {/* Blobs */}
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute top-[-80px] left-[-80px] w-[400px] h-[400px] rounded-full opacity-30"
             style={{ background: "radial-gradient(circle, #a5b4fc, #c4b5fd)" }} />
@@ -138,7 +134,6 @@ export default function LoginPage() {
             style={{ background: "radial-gradient(circle, #14b8a6, transparent)" }} />
         </div>
 
-        {/* Logo */}
         <div className="relative flex items-center gap-3">
           <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg"
             style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}>
@@ -150,7 +145,6 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Hero */}
         <div className="relative">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/60 backdrop-blur-sm text-[#6366f1] text-xs font-semibold mb-6 border border-[#c4b5fd]/40">
             <span className="w-1.5 h-1.5 rounded-full bg-[#6366f1]" />
@@ -166,7 +160,6 @@ export default function LoginPage() {
             Track properties, manage your broker hierarchy, distribute commissions automatically, and convert leads — all in one place.
           </p>
 
-          {/* Stat pills */}
           <div className="flex gap-3 flex-wrap">
             {[
               { icon: Users, label: "1,284 Brokers", color: "#6366f1" },
@@ -204,14 +197,6 @@ export default function LoginPage() {
             <p className="text-gray-400 text-sm">Sign in to your account to continue</p>
           </div>
 
-          <div className="mb-6 p-3 rounded-xl bg-indigo-50 border border-indigo-100 space-y-1.5">
-            <p className="text-[11px] font-bold text-indigo-700 uppercase tracking-wide">Demo Credentials</p>
-            <div className="flex flex-col gap-1 text-[11px] text-indigo-800">
-              <span><span className="font-semibold">Admin:</span> admin@masheuri.com · admin123</span>
-              <span><span className="font-semibold">Associate:</span> username from Associates table · their password</span>
-            </div>
-          </div>
-
           <form className="space-y-4" onSubmit={handleLogin}>
             <div className="space-y-1.5">
               <Label htmlFor="email" className="text-sm font-semibold text-[#1e1b4b]">Email or Username</Label>
@@ -220,7 +205,7 @@ export default function LoginPage() {
                 <Input
                   id="email"
                   type="text"
-                  placeholder="admin@masheuri.com or alok.kumar"
+                  placeholder="Enter your email or username"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-10 h-11 rounded-xl border-gray-200 bg-gray-50 text-sm focus:bg-white focus:border-[#6366f1] transition-colors"
@@ -229,10 +214,7 @@ export default function LoginPage() {
             </div>
 
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="password" className="text-sm font-semibold text-[#1e1b4b]">Password</Label>
-                <Link href="#" className="text-xs font-medium text-[#6366f1] hover:underline">Forgot password?</Link>
-              </div>
+              <Label htmlFor="password" className="text-sm font-semibold text-[#1e1b4b]">Password</Label>
               <div className="relative">
                 <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-300" />
                 <Input
@@ -258,22 +240,6 @@ export default function LoginPage() {
               {loading ? "Signing in..." : "Sign In"}
               <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
             </Button>
-
-            <div className="relative my-4">
-              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-100" /></div>
-              <div className="relative flex justify-center">
-                <span className="px-3 bg-white text-xs text-gray-400">Quick Login (Demo)</span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2">
-              {["Admin", "Associate", "Sub-Associate"].map((role) => (
-                <Button key={role} type="button" variant="outline" onClick={() => handleDummyLogin(role)}
-                  className="w-full px-0 h-10 text-[11px] font-bold rounded-xl border-gray-200 text-gray-500 hover:border-[#6366f1] hover:text-[#6366f1] hover:bg-[#f5f3ff] transition-all">
-                  {role}
-                </Button>
-              ))}
-            </div>
           </form>
 
           <p className="text-center text-sm text-gray-400 mt-8">

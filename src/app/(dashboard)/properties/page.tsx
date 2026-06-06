@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Plus, Search, Filter, MapPin, IndianRupee, LayoutGrid, List, Edit, Trash2, Eye, Building2, Maximize2, Upload, X, Loader2, Image as ImageIcon, Users } from "lucide-react";
 import { useCrmData } from "@/hooks/use-crm-data";
+import { useCurrentUser, getDownlineIds } from "@/hooks/use-auth";
 import { toast } from "sonner";
 import { Property, PlotUnit } from "@/types/database";
 import PlotMap from "@/components/PlotMap";
@@ -47,9 +48,18 @@ export default function PropertiesPage() {
   const [detailOpen, setDetailOpen] = useState(false);
 
   const { properties, associates, loading, addProperty, updateProperty, deleteProperty } = useCrmData();
+  const { user } = useCurrentUser();
+  const isAdmin = user?.role === "admin";
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
-  const filtered = (properties || []).filter((p) => {
+  // Non-admins only see properties tied to themselves or their downline; admin sees all.
+  const visibleProperties = useMemo(() => {
+    if (isAdmin || !user) return properties || [];
+    const allowed = new Set<string>([user.id, ...getDownlineIds(user.referral_code, associates)]);
+    return (properties || []).filter((p) => p.associate_id && allowed.has(p.associate_id));
+  }, [properties, associates, isAdmin, user]);
+
+  const filtered = visibleProperties.filter((p) => {
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) || p.location.toLowerCase().includes(search.toLowerCase());
     const matchStatus = filterStatus === "all" || p.status === filterStatus;
     return matchSearch && matchStatus;
@@ -115,6 +125,8 @@ export default function PropertiesPage() {
               key={editingProperty?.id ?? "new"}
               initialData={editingProperty}
               associates={associates}
+              isAdmin={!!isAdmin}
+              currentUser={user}
               onClose={() => setDialogOpen(false)}
               onSubmit={async (data) => {
                 if (editingProperty) {
@@ -175,10 +187,10 @@ export default function PropertiesPage() {
       {/* Stat pills */}
       <div className="flex flex-wrap gap-3">
         {[
-          { label: "Total", value: properties.length, color: "#6366f1", bg: "#ede9fe" },
-          { label: "Available", value: properties.filter(p => p.status === "available").length, color: "#16a34a", bg: "#dcfce7" },
-          { label: "Reserved", value: properties.filter(p => p.status === "reserved").length, color: "#d97706", bg: "#fef3c7" },
-          { label: "Sold", value: properties.filter(p => p.status === "sold").length, color: "#dc2626", bg: "#fee2e2" },
+          { label: "Total", value: visibleProperties.length, color: "#6366f1", bg: "#ede9fe" },
+          { label: "Available", value: visibleProperties.filter(p => p.status === "available").length, color: "#16a34a", bg: "#dcfce7" },
+          { label: "Reserved", value: visibleProperties.filter(p => p.status === "reserved").length, color: "#d97706", bg: "#fef3c7" },
+          { label: "Sold", value: visibleProperties.filter(p => p.status === "sold").length, color: "#dc2626", bg: "#fee2e2" },
         ].map((s) => (
           <div key={s.label} className="flex items-center gap-2 bg-white rounded-xl px-4 py-2.5 shadow-sm border-0 cursor-default hover:shadow-md transition-shadow">
             <span className="text-lg font-bold" style={{ color: s.color }}>{s.value}</span>
@@ -570,7 +582,9 @@ function PropertyDetailView({ property, onClose }: { property: Property; onClose
   );
 }
 
-function PropertyForm({ initialData, onClose, onSubmit, associates }: { initialData?: Property | null; onClose: () => void; onSubmit: (data: any) => Promise<void>; associates: any[] }) {
+function PropertyForm({ initialData, onClose, onSubmit, associates, isAdmin, currentUser }: { initialData?: Property | null; onClose: () => void; onSubmit: (data: any) => Promise<void>; associates: any[]; isAdmin: boolean; currentUser: { id: string; full_name: string } | null }) {
+  // Non-admins always create properties under their own name.
+  const selfAssign = !isAdmin && currentUser ? { id: currentUser.id, name: currentUser.full_name } : null;
   const [formData, setFormData] = useState({
     name: initialData?.name || "",
     location: initialData?.location || "",
@@ -579,8 +593,8 @@ function PropertyForm({ initialData, onClose, onSubmit, associates }: { initialD
     status: initialData?.status || "available" as any,
     images: initialData?.images || [] as string[],
     map_image: initialData?.map_image || "",
-    associate_id: initialData?.associate_id || "",
-    associate_name: initialData?.associate_name || "",
+    associate_id: initialData?.associate_id || selfAssign?.id || "",
+    associate_name: initialData?.associate_name || selfAssign?.name || "",
   });
 
   const [files, setFiles] = useState<{ propertyImages: File[]; mapImage: File | null }>({
@@ -741,34 +755,45 @@ return (
           </div>
         </div>
 
-        <div className="space-y-1.5">
-          <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-2">
-            <Users className="w-3.5 h-3.5 text-indigo-500" /> Assigned Associate
-          </Label>
-          <Select 
-            value={formData.associate_id || "none"} 
-            onValueChange={(v: any) => {
-              const selected = v === "none" ? undefined : associates.find(a => a.id === v);
-              setFormData({
-                ...formData, 
-                associate_id: v === "none" ? "" : v,
-                associate_name: selected?.full_name || ""
-              });
-            }}
-          >
-            <SelectTrigger className="h-11 rounded-xl bg-slate-50 border-slate-200">
-              <SelectValue placeholder="Select an associate (optional)" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">No Associate</SelectItem>
-              {associates.map((a) => (
-                <SelectItem key={a.id} value={a.id}>
-                  {a.full_name} ({a.referral_code})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {isAdmin ? (
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-2">
+              <Users className="w-3.5 h-3.5 text-indigo-500" /> Assigned Associate
+            </Label>
+            <Select
+              value={formData.associate_id || "none"}
+              onValueChange={(v: any) => {
+                const selected = v === "none" ? undefined : associates.find(a => a.id === v);
+                setFormData({
+                  ...formData,
+                  associate_id: v === "none" ? "" : v,
+                  associate_name: selected?.full_name || ""
+                });
+              }}
+            >
+              <SelectTrigger className="h-11 rounded-xl bg-slate-50 border-slate-200">
+                <SelectValue placeholder="Select an associate (optional)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No Associate</SelectItem>
+                {associates.map((a) => (
+                  <SelectItem key={a.id} value={a.id}>
+                    {a.full_name} ({a.referral_code})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : selfAssign ? (
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-2">
+              <Users className="w-3.5 h-3.5 text-indigo-500" /> Assigned Associate
+            </Label>
+            <div className="h-11 rounded-xl bg-slate-100 border border-slate-200 flex items-center px-3 text-sm text-slate-600">
+              {selfAssign.name} (you)
+            </div>
+          </div>
+        ) : null}
       </div>
 
       {/* Property Photos */}
