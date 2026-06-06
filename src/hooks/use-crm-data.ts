@@ -19,6 +19,17 @@ async function dbMutate(op: "insert" | "update" | "delete", table: string, data?
   return json;
 }
 
+async function dbSelect(table: string): Promise<any[]> {
+  const res = await fetch("/api/db", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ op: "select", table }),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || "Database error");
+  return json.data || [];
+}
+
 // ── Mock data ──────────────────────────────────────────────────────────────────
 
 const MOCK_PLOT_UNITS: PlotUnit[] = [
@@ -158,11 +169,13 @@ export function useCrmData() {
       setTelecallers(stored ? JSON.parse(stored) : MOCK_TELECALLERS);
       return;
     }
-    const { data, error } = await supabase.from("telecallers").select("*").order("created_at", { ascending: false });
-    if (error) {
+    try {
+      const data = await dbSelect("telecallers");
+      setTelecallers(data);
+    } catch {
       const stored = typeof window !== "undefined" ? localStorage.getItem("mg_telecallers_v1") : null;
       setTelecallers(stored ? JSON.parse(stored) : MOCK_TELECALLERS);
-    } else setTelecallers(data || []);
+    }
   }, []);
 
   const fetchFollowups = useCallback(async () => {
@@ -171,11 +184,13 @@ export function useCrmData() {
       setFollowups(stored ? JSON.parse(stored) : MOCK_FOLLOWUPS);
       return;
     }
-    const { data, error } = await supabase.from("lead_followups").select("*").order("created_at", { ascending: false });
-    if (error) {
+    try {
+      const data = await dbSelect("lead_followups");
+      setFollowups(data);
+    } catch {
       const stored = typeof window !== "undefined" ? localStorage.getItem("mg_followups_v1") : null;
       setFollowups(stored ? JSON.parse(stored) : MOCK_FOLLOWUPS);
-    } else setFollowups(data || []);
+    }
   }, []);
 
   useEffect(() => {
@@ -322,6 +337,8 @@ export function useCrmData() {
       toast.success("Telecaller deleted");
       return;
     }
+    const isRealUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    if (!isRealUUID) { toast.success("Telecaller deleted"); return; }
     try {
       await dbMutate("delete", "telecallers", undefined, id);
       toast.success("Telecaller deleted");

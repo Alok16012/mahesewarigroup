@@ -9,6 +9,7 @@ function getAdminClient() {
 }
 
 type Body =
+  | { op: "select"; table: string }
   | { op: "insert"; table: string; data: Record<string, unknown> }
   | { op: "update"; table: string; id: string; data: Record<string, unknown> }
   | { op: "delete"; table: string; id: string };
@@ -17,6 +18,15 @@ export async function POST(req: NextRequest) {
   try {
     const admin = getAdminClient();
     const body: Body = await req.json();
+
+    if (body.op === "select") {
+      const { data, error } = await admin
+        .from(body.table)
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+      return NextResponse.json({ data });
+    }
 
     if (body.op === "insert") {
       const { data, error } = await admin
