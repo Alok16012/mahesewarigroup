@@ -166,30 +166,28 @@ export function useCrmData() {
   const fetchTelecallers = useCallback(async () => {
     if (!isSupabaseConfigured()) {
       const stored = typeof window !== "undefined" ? localStorage.getItem("mg_telecallers_v1") : null;
-      setTelecallers(stored ? JSON.parse(stored) : MOCK_TELECALLERS);
+      setTelecallers(stored ? JSON.parse(stored) : []);
       return;
     }
     try {
       const data = await dbSelect("telecallers");
       setTelecallers(data);
     } catch {
-      const stored = typeof window !== "undefined" ? localStorage.getItem("mg_telecallers_v1") : null;
-      setTelecallers(stored ? JSON.parse(stored) : MOCK_TELECALLERS);
+      setTelecallers([]);
     }
   }, []);
 
   const fetchFollowups = useCallback(async () => {
     if (!isSupabaseConfigured()) {
       const stored = typeof window !== "undefined" ? localStorage.getItem("mg_followups_v1") : null;
-      setFollowups(stored ? JSON.parse(stored) : MOCK_FOLLOWUPS);
+      setFollowups(stored ? JSON.parse(stored) : []);
       return;
     }
     try {
       const data = await dbSelect("lead_followups");
       setFollowups(data);
     } catch {
-      const stored = typeof window !== "undefined" ? localStorage.getItem("mg_followups_v1") : null;
-      setFollowups(stored ? JSON.parse(stored) : MOCK_FOLLOWUPS);
+      setFollowups([]);
     }
   }, []);
 
