@@ -26,6 +26,7 @@ import { Lead, LeadStatus, FollowUp } from "@/types/database";
 const stages: { key: LeadStatus; label: string; color: string; textColor: string; borderColor: string }[] = [
   { key: "new",         label: "New",         color: "#eef2ff", textColor: "#6366f1", borderColor: "#6366f1" },
   { key: "contacted",   label: "Contacted",   color: "#eff6ff", textColor: "#3b82f6", borderColor: "#3b82f6" },
+  { key: "nr",          label: "NR",          color: "#f8fafc", textColor: "#64748b", borderColor: "#94a3b8" },
   { key: "site_visit",  label: "Site Visit",  color: "#fffbeb", textColor: "#d97706", borderColor: "#f59e0b" },
   { key: "negotiation", label: "Negotiation", color: "#fff7ed", textColor: "#ea580c", borderColor: "#f97316" },
   { key: "converted",   label: "Converted",   color: "#f0fdf4", textColor: "#16a34a", borderColor: "#22c55e" },

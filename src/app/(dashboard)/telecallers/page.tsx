@@ -372,6 +372,7 @@ function TelecallerDetailModal({ tc, leads, followups, onClose }: {
   const stages: Record<string, { color: string; textColor: string }> = {
     new:         { color: "#eef2ff", textColor: "#6366f1" },
     contacted:   { color: "#eff6ff", textColor: "#3b82f6" },
+    nr:          { color: "#f8fafc", textColor: "#64748b" },
     site_visit:  { color: "#fffbeb", textColor: "#d97706" },
     negotiation: { color: "#fff7ed", textColor: "#ea580c" },
     converted:   { color: "#f0fdf4", textColor: "#16a34a" },

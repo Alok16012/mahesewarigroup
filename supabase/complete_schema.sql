@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS leads (
   property_id UUID REFERENCES properties(id) ON DELETE SET NULL,
   property_name TEXT,
   budget NUMERIC,
-  status TEXT CHECK (status IN ('new', 'contacted', 'site_visit', 'negotiation', 'converted', 'lost')) DEFAULT 'new',
+  status TEXT CHECK (status IN ('new', 'contacted', 'nr', 'site_visit', 'negotiation', 'converted', 'lost')) DEFAULT 'new',
   source TEXT,
   associate_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
   associate_name TEXT,

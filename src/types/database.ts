@@ -1,4 +1,4 @@
-export type LeadStatus = "new" | "contacted" | "site_visit" | "negotiation" | "converted" | "lost";
+export type LeadStatus = "new" | "contacted" | "nr" | "site_visit" | "negotiation" | "converted" | "lost";
 export type UserRole = "admin" | "associate" | "sub-associate";
 
 export interface Profile {

@@ -36,7 +36,7 @@ CREATE TABLE leads (
   property_id UUID REFERENCES properties(id) ON DELETE SET NULL,
   property_name TEXT, -- Denormalized for quick access
   budget NUMERIC,
-  status TEXT CHECK (status IN ('new', 'contacted', 'site_visit', 'negotiation', 'converted', 'lost')) DEFAULT 'new',
+  status TEXT CHECK (status IN ('new', 'contacted', 'nr', 'site_visit', 'negotiation', 'converted', 'lost')) DEFAULT 'new',
   source TEXT,
   broker_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
   broker_name TEXT, -- Denormalized
