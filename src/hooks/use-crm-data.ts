@@ -134,14 +134,11 @@ export function useCrmData() {
       setUsingMockData(true);
       return;
     }
-    // Read via service-role API: the app uses localStorage auth (no Supabase
-    // session), so a direct anon client read is blocked by RLS and returns [].
     try {
       const data = await dbSelect("leads");
       setLeads(data);
     } catch {
-      setLeads(MOCK_LEADS);
-      setUsingMockData(true);
+      setLeads([]);
     }
   }, []);
 
@@ -152,7 +149,7 @@ export function useCrmData() {
     try {
       const data = await dbSelect("properties");
       setProperties(data);
-    } catch { setProperties(MOCK_PROPERTIES); setUsingMockData(true); }
+    } catch { setProperties([]); }
   }, []);
 
   const fetchAssociates = useCallback(async () => {
@@ -160,7 +157,7 @@ export function useCrmData() {
     try {
       const data = await dbSelect("profiles");
       setAssociates((data as Associate[]).filter((a) => a.role === "associate" || a.role === "sub-associate"));
-    } catch { setAssociates(MOCK_ASSOCIATES); setUsingMockData(true); }
+    } catch { setAssociates([]); }
   }, []);
 
   const fetchSales = useCallback(async () => {
@@ -168,7 +165,7 @@ export function useCrmData() {
     try {
       const data = await dbSelect("sales");
       setSales(data as SaleRecord[]);
-    } catch { setSales(MOCK_SALES); setUsingMockData(true); }
+    } catch { setSales([]); }
   }, []);
 
   const fetchTelecallers = useCallback(async () => {

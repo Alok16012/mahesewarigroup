@@ -62,7 +62,8 @@ export default function LeadsPage() {
   const { user } = useCurrentUser();
 
   const visibleLeads = useMemo(() => {
-    if (!user || user.role === "admin") return leads;
+    if (!user) return [];
+    if (user.role === "admin") return leads;
     if (user.role === "telecaller") return leads.filter((l) => l.telecaller_id === user.id);
     const downlineIds = getDownlineIds(user.referral_code, associates);
     const allowedIds = new Set([user.id, ...downlineIds]);
@@ -71,7 +72,8 @@ export default function LeadsPage() {
 
   const filtered = visibleLeads.filter((l) => {
     if (dueTodayOnly && l.next_followup_date !== today) return false;
-    if (tcFilter !== "all" && l.telecaller_id !== tcFilter) return false;
+    if (tcFilter === "unassigned" && l.telecaller_id) return false;
+    if (tcFilter !== "all" && tcFilter !== "unassigned" && l.telecaller_id !== tcFilter) return false;
     return (
       l.name.toLowerCase().includes(search.toLowerCase()) ||
       l.phone.includes(search) ||
