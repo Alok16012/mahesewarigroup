@@ -41,7 +41,7 @@ const formatPrice = (p: number) =>
 const SITE_NOTES = {
   uchauri: {
     rate: "Rs 1,199/sqft",
-    sizeRange: "1080 sqft to 2736 sqft",
+    sizeRange: "1080 sqft to 2784 sqft",
     nearby: [
       "1.5 km from Satellite City, Naubatpur",
       "2.5 km from NH-139 (AIIMS - Aurangabad)",
