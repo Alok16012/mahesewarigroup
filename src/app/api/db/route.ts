@@ -33,6 +33,26 @@ export async function POST(req: NextRequest) {
     }
 
     if (body.op === "select") {
+      if (body.table === "properties") {
+        const { data, error } = await admin
+          .from("properties")
+          .select("*, plot_units(*)")
+          .order("created_at", { ascending: false });
+        if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+        const withSortedPlots = (data || []).map((property) => ({
+          ...property,
+          plot_units: [...(property.plot_units || [])].sort((a, b) =>
+            String(a.unit_number).localeCompare(String(b.unit_number), undefined, {
+              numeric: true,
+              sensitivity: "base",
+            })
+          ),
+        }));
+
+        return NextResponse.json({ data: withSortedPlots });
+      }
+
       const { data, error } = await admin
         .from(body.table)
         .select("*")
