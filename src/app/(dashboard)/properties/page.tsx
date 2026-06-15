@@ -104,14 +104,15 @@ export default function PropertiesPage() {
   const { properties, associates, loading, addProperty, updateProperty, deleteProperty } = useCrmData();
   const { user } = useCurrentUser();
   const isAdmin = user?.role === "admin";
+  const isMarketingManager = user?.role === "marketing-manager";
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   // Non-admins only see properties tied to themselves or their downline; admin sees all.
   const visibleProperties = useMemo(() => {
-    if (isAdmin || !user) return properties || [];
+    if (isAdmin || isMarketingManager || !user) return properties || [];
     const allowed = new Set<string>([user.id, ...getDownlineIds(user.referral_code, associates)]);
     return (properties || []).filter((p) => p.associate_id && allowed.has(p.associate_id));
-  }, [properties, associates, isAdmin, user]);
+  }, [properties, associates, isAdmin, isMarketingManager, user]);
 
   const filtered = visibleProperties.filter((p) => {
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) || p.location.toLowerCase().includes(search.toLowerCase());
@@ -158,11 +159,13 @@ export default function PropertiesPage() {
         </div>
         <div className="flex gap-3">
           {/* Plain button — no DialogTrigger, avoids controlled-mode conflict */}
-          <button
-            onClick={handleAdd}
-            className="h-10 px-4 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 shadow-md flex items-center gap-2 transition-colors">
-            <Plus className="w-4 h-4" /> Add Property
-          </button>
+          {!isMarketingManager && (
+            <button
+              onClick={handleAdd}
+              className="h-10 px-4 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 shadow-md flex items-center gap-2 transition-colors">
+              <Plus className="w-4 h-4" /> Add Property
+            </button>
+          )}
         </div>
       </div>
 
@@ -204,6 +207,7 @@ export default function PropertiesPage() {
             <PropertyDetailView
               key={viewingProperty.id}
               property={viewingProperty}
+              readOnly={isMarketingManager}
               onClose={() => setDetailOpen(false)}
             />
           )}
@@ -300,8 +304,12 @@ export default function PropertiesPage() {
                   </div>
                   <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                     <button onClick={(e) => { e.stopPropagation(); handleView(prop); }} className="w-9 h-9 rounded-xl bg-white shadow-xl flex items-center justify-center text-[#6366f1] hover:scale-110 transition-transform active:scale-95"><Eye className="w-4.5 h-4.5" /></button>
-                    <button onClick={(e) => { e.stopPropagation(); handleEdit(prop); }} className="w-9 h-9 rounded-xl bg-white shadow-xl flex items-center justify-center text-[#6366f1] hover:scale-110 transition-transform active:scale-95"><Edit className="w-4.5 h-4.5" /></button>
-                    <button onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(prop.id); }} className="w-9 h-9 rounded-xl bg-white shadow-xl flex items-center justify-center text-red-500 hover:scale-110 transition-transform active:scale-95"><Trash2 className="w-4.5 h-4.5" /></button>
+                    {!isMarketingManager && (
+                      <>
+                        <button onClick={(e) => { e.stopPropagation(); handleEdit(prop); }} className="w-9 h-9 rounded-xl bg-white shadow-xl flex items-center justify-center text-[#6366f1] hover:scale-110 transition-transform active:scale-95"><Edit className="w-4.5 h-4.5" /></button>
+                        <button onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(prop.id); }} className="w-9 h-9 rounded-xl bg-white shadow-xl flex items-center justify-center text-red-500 hover:scale-110 transition-transform active:scale-95"><Trash2 className="w-4.5 h-4.5" /></button>
+                      </>
+                    )}
                   </div>
                 </div>
                 <div className="p-4" onClick={() => handleView(prop)}>
@@ -385,8 +393,12 @@ export default function PropertiesPage() {
                     <TableCell>
                       <div className="flex gap-1 justify-end">
                         <Button onClick={() => handleView(prop)} variant="ghost" size="icon" className="h-9 w-9 text-gray-400 hover:text-[#6366f1] hover:bg-[#ede9fe] rounded-xl transition-all"><Eye className="w-4 h-4" /></Button>
-                        <Button onClick={() => handleEdit(prop)} variant="ghost" size="icon" className="h-9 w-9 text-gray-400 hover:text-[#6366f1] hover:bg-[#ede9fe] rounded-xl transition-all"><Edit className="w-4 h-4" /></Button>
-                        <Button onClick={() => setDeleteConfirmId(prop.id)} variant="ghost" size="icon" className="h-9 w-9 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"><Trash2 className="w-4 h-4" /></Button>
+                        {!isMarketingManager && (
+                          <>
+                            <Button onClick={() => handleEdit(prop)} variant="ghost" size="icon" className="h-9 w-9 text-gray-400 hover:text-[#6366f1] hover:bg-[#ede9fe] rounded-xl transition-all"><Edit className="w-4 h-4" /></Button>
+                            <Button onClick={() => setDeleteConfirmId(prop.id)} variant="ghost" size="icon" className="h-9 w-9 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"><Trash2 className="w-4 h-4" /></Button>
+                          </>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -400,7 +412,7 @@ export default function PropertiesPage() {
   );
 }
 
-function PropertyDetailView({ property, onClose }: { property: Property; onClose: () => void }) {
+function PropertyDetailView({ property, onClose, readOnly = false }: { property: Property; onClose: () => void; readOnly?: boolean }) {
   const [activeImage, setActiveImage] = useState(0);
   const [showMap, setShowMap] = useState(false);
   const [showSiteMap, setShowSiteMap] = useState(false);
@@ -655,7 +667,7 @@ function PropertyDetailView({ property, onClose }: { property: Property; onClose
                 <div className="w-1.5 h-5 rounded-full bg-[#22c55e]" />
                 Plot Map
               </h4>
-              <PlotMap propertyId={property.id} plots={plotUnits} />
+              <PlotMap propertyId={property.id} plots={plotUnits} readOnly={readOnly} />
             </div>
           )}
         </div>

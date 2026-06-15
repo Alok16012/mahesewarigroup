@@ -1,5 +1,5 @@
 export type LeadStatus = "new" | "contacted" | "nr" | "site_visit" | "negotiation" | "converted" | "lost";
-export type UserRole = "admin" | "associate" | "sub-associate";
+export type UserRole = "admin" | "associate" | "sub-associate" | "telecaller" | "marketing-manager";
 
 export interface Profile {
   id: string; // UUID

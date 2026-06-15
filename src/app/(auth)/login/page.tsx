@@ -74,7 +74,29 @@ export default function LoginPage() {
         });
       }
 
-      // 3. Telecaller login — check telecallers table via API
+      // 3. Marketing manager login — check staff table via API
+      try {
+        const res = await fetch("/api/db", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ op: "marketing-login", username: email, password }),
+        });
+        const json = await res.json();
+        if (res.ok && json.data) {
+          const manager = json.data as { id: string; full_name: string; username: string };
+          if (typeof window !== "undefined") {
+            localStorage.setItem("dummy_role", "marketing-manager");
+            localStorage.setItem("dummy_marketing_manager", JSON.stringify(manager));
+            localStorage.removeItem("dummy_telecaller");
+            localStorage.removeItem("dummy_associate");
+          }
+          toast.success(`Welcome, ${manager.full_name}!`);
+          setTimeout(() => { router.push("/properties"); setLoading(false); }, 800);
+          return;
+        }
+      } catch {}
+
+      // 4. Telecaller login — check telecallers table via API
       try {
         const res = await fetch("/api/db", {
           method: "POST",
@@ -87,6 +109,7 @@ export default function LoginPage() {
           if (typeof window !== "undefined") {
             localStorage.setItem("dummy_role", "telecaller");
             localStorage.setItem("dummy_telecaller", JSON.stringify(tc));
+            localStorage.removeItem("dummy_marketing_manager");
           }
           toast.success(`Welcome, ${tc.full_name}!`);
           setTimeout(() => { router.push("/dashboard"); setLoading(false); }, 800);
@@ -99,7 +122,7 @@ export default function LoginPage() {
       return;
     }
 
-    // 4. Supabase auth (email-based)
+    // 5. Supabase auth (email-based)
     if (!isSupabaseConfigured()) {
       toast.info("Supabase not configured — entering Demo Mode.");
       setTimeout(() => { router.push("/dashboard"); setLoading(false); }, 800);

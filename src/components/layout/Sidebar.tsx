@@ -16,6 +16,7 @@ const navItems = [
   { href: "/properties",  icon: Building2,       label: "Properties",          adminOnly: false, telecallerHidden: true  },
   { href: "/leads",       icon: Target,          label: "My Leads",            adminOnly: false, telecallerHidden: false },
   { href: "/telecallers", icon: Headphones,      label: "Telecallers",         adminOnly: true,  telecallerHidden: true  },
+  { href: "/marketing-managers", icon: Users,    label: "Marketing Managers",  adminOnly: true,  telecallerHidden: true  },
   { href: "/associates",  icon: Users,           label: "Associate Network",   adminOnly: false, telecallerHidden: true  },
   { href: "/sales",       icon: TrendingUp,      label: "Sales & Commissions", adminOnly: false, telecallerHidden: true  },
   { href: "/settings",    icon: Settings,        label: "Settings",            adminOnly: true,  telecallerHidden: true  },
@@ -26,6 +27,7 @@ const roleLabel: Record<string, string> = {
   associate: "Associate (L1)",
   "sub-associate": "Sub-Associate (L2)",
   telecaller: "Telecaller",
+  "marketing-manager": "Marketing Manager",
 };
 
 export default function Sidebar() {
@@ -40,6 +42,7 @@ export default function Sidebar() {
     if (typeof window !== "undefined") {
       localStorage.removeItem("dummy_role");
       localStorage.removeItem("dummy_telecaller");
+      localStorage.removeItem("dummy_marketing_manager");
     }
     toast.success("Signed out");
     router.push("/login");
@@ -99,6 +102,7 @@ export default function Sidebar() {
         <ul className="space-y-0.5">
           {navItems.filter((item) => {
             if (user?.role === "telecaller") return !item.telecallerHidden;
+            if (user?.role === "marketing-manager") return item.href === "/properties" || item.href === "/leads";
             if (item.adminOnly) return user?.role === "admin";
             return true;
           }).map((item) => {

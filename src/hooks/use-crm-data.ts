@@ -110,6 +110,8 @@ const MOCK_TELECALLERS: Telecaller[] = [
   { id: "TC-003", full_name: "Arun Kumar", phone: "+91 99003 33333", username: "arun.tc", password: "MG@2024#3", status: "inactive", created_at: "2024-03-10" },
 ];
 
+const MARKETING_MANAGER_MARKER = "__marketing_manager__";
+
 const MOCK_FOLLOWUPS: FollowUp[] = [
   { id: "FU-001", lead_id: "L-001", lead_name: "Suresh Gupta", telecaller_id: "TC-001", telecaller_name: "Ramesh Yadav", follow_up_date: "2024-04-10", notes: "Interested in corner plot, will call back after Friday", outcome: "callback", next_followup_date: "2024-04-12", created_at: "2024-04-10T10:00:00Z" },
   { id: "FU-002", lead_id: "L-002", lead_name: "Ritu Agarwal", telecaller_id: "TC-002", telecaller_name: "Sunita Patel", follow_up_date: "2024-04-08", notes: "Site visit scheduled for this weekend", outcome: "interested", next_followup_date: "2024-04-15", created_at: "2024-04-08T14:00:00Z" },
@@ -189,9 +191,10 @@ export function useCrmData() {
     }
     try {
       const data = await dbSelect("telecallers");
+      const filteredData = (data as Telecaller[]).filter((t) => t.phone !== MARKETING_MANAGER_MARKER);
       if (data.length > 0) {
-        setTelecallers(data);
-        if (typeof window !== "undefined") localStorage.setItem(lsKey, JSON.stringify(data));
+        setTelecallers(filteredData);
+        if (typeof window !== "undefined") localStorage.setItem(lsKey, JSON.stringify(filteredData));
       } else if (localData.length > 0) {
         setTelecallers(localData);
       } else {

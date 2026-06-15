@@ -66,6 +66,7 @@ export default function LeadsPage() {
     if (!user) return [];
     if (user.role === "admin") return leads;
     if (user.role === "telecaller") return leads.filter((l) => l.telecaller_id === user.id);
+    if (user.role === "marketing-manager") return leads.filter((l) => l.telecaller_id === user.id);
     const downlineIds = getDownlineIds(user.referral_code, associates);
     const allowedIds = new Set([user.id, ...downlineIds]);
     return leads.filter((l) => allowedIds.has(l.associate_id || ""));
@@ -493,8 +494,10 @@ function AddLeadForm({ onClose, onSubmit, currentUser, properties }: {
   const [formData, setFormData] = useState({
     name: "", phone: "", email: "", property_name: "",
     budget: 5000000, source: "Website", status: "new" as any, notes: "",
-    associate_id: currentUser?.id || "",
+    associate_id: currentUser?.role === "marketing-manager" ? "" : currentUser?.id || "",
     associate_name: currentUser?.full_name || "Admin",
+    telecaller_id: currentUser?.role === "marketing-manager" ? currentUser.id : "",
+    telecaller_name: currentUser?.role === "marketing-manager" ? currentUser.full_name : "",
   });
   const [submitting, setSubmitting] = useState(false);
 

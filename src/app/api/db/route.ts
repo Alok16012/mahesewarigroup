@@ -11,9 +11,12 @@ function getAdminClient() {
 type Body =
   | { op: "select"; table: string }
   | { op: "telecaller-login"; username: string; password: string }
+  | { op: "marketing-login"; username: string; password: string }
   | { op: "insert"; table: string; data: Record<string, unknown> }
   | { op: "update"; table: string; id: string; data: Record<string, unknown> }
   | { op: "delete"; table: string; id: string };
+
+const MARKETING_MANAGER_MARKER = "__marketing_manager__";
 
 export async function POST(req: NextRequest) {
   try {
@@ -23,10 +26,23 @@ export async function POST(req: NextRequest) {
     if (body.op === "telecaller-login") {
       const { data, error } = await admin
         .from("telecallers")
+        .select("id, full_name, username, status, phone")
+        .eq("username", body.username)
+        .eq("password", body.password)
+        .eq("status", "active")
+        .single();
+      if (error || !data || data.phone === MARKETING_MANAGER_MARKER) return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+      return NextResponse.json({ data });
+    }
+
+    if (body.op === "marketing-login") {
+      const { data, error } = await admin
+        .from("telecallers")
         .select("id, full_name, username, status")
         .eq("username", body.username)
         .eq("password", body.password)
         .eq("status", "active")
+        .eq("phone", MARKETING_MANAGER_MARKER)
         .single();
       if (error || !data) return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
       return NextResponse.json({ data });
