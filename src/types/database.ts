@@ -80,6 +80,7 @@ export interface Property {
   image_url?: string;
   images?: string[];
   map_image?: string;
+  nearby_locations?: string[];
   plot_units?: PlotUnit[];
   associate_id?: string;
   associate_name?: string;

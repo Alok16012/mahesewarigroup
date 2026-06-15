@@ -55,9 +55,41 @@ const SITE_NOTES = {
   },
 };
 
+const PROPERTY_META_PREFIX = "mg-meta:";
+
 const getSiteNotes = (property: Property) => {
   const key = `${property.name} ${property.location}`.toLowerCase();
   return key.includes("uchauri") || key.includes("naubatpur") ? SITE_NOTES.uchauri : null;
+};
+
+const parsePropertyMeta = (property?: Property | null): { hasMeta: boolean; nearby_locations: string[] } => {
+  if (!property?.image_url?.startsWith(PROPERTY_META_PREFIX)) return { hasMeta: false, nearby_locations: [] };
+  try {
+    const parsed = JSON.parse(property.image_url.slice(PROPERTY_META_PREFIX.length));
+    return {
+      hasMeta: true,
+      nearby_locations: Array.isArray(parsed.nearby_locations)
+        ? parsed.nearby_locations.filter((item: unknown): item is string => typeof item === "string")
+        : [],
+    };
+  } catch {
+    return { hasMeta: false, nearby_locations: [] };
+  }
+};
+
+const getNearbyLocations = (property: Property) => {
+  const directLocations = property.nearby_locations?.filter(Boolean) || [];
+  if (directLocations.length > 0) return directLocations;
+
+  const meta = parsePropertyMeta(property);
+  if (meta.hasMeta) return meta.nearby_locations.filter(Boolean);
+
+  return getSiteNotes(property)?.nearby || [];
+};
+
+const buildPropertyMeta = (nearbyLocations: string[]) => {
+  const cleaned = nearbyLocations.map((item) => item.trim()).filter(Boolean);
+  return `${PROPERTY_META_PREFIX}${JSON.stringify({ nearby_locations: cleaned })}`;
 };
 
 export default function PropertiesPage() {
@@ -381,6 +413,7 @@ function PropertyDetailView({ property, onClose }: { property: Property; onClose
   const reservedCount = plotUnits.filter(u => u.status === "reserved").length;
   const soldCount = plotUnits.filter(u => u.status === "sold").length;
   const siteNotes = getSiteNotes(property);
+  const nearbyLocations = getNearbyLocations(property);
   const plotSizes = plotUnits
     .map((unit) => Number(String(unit.size || "").match(/\d+(\.\d+)?/)?.[0]))
     .filter((value) => Number.isFinite(value) && value > 0);
@@ -602,11 +635,11 @@ function PropertyDetailView({ property, onClose }: { property: Property; onClose
                   </p>
                 </div>
               </div>
-              {siteNotes && (
+              {nearbyLocations.length > 0 && (
                 <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
                   <p className="text-[9px] font-semibold text-slate-400 uppercase mb-2">Nearby Location</p>
                   <div className="space-y-1.5">
-                    {siteNotes.nearby.map((item) => (
+                    {nearbyLocations.map((item) => (
                       <p key={item} className="text-xs text-slate-600 leading-relaxed">{item}</p>
                     ))}
                   </div>
@@ -652,6 +685,7 @@ function PropertyForm({ initialData, onClose, onSubmit, associates, isAdmin, cur
     status: initialData?.status || "available" as any,
     images: initialData?.images || [] as string[],
     map_image: initialData?.map_image || "",
+    nearby_locations: initialData ? getNearbyLocations(initialData) : [] as string[],
     associate_id: initialData?.associate_id || selfAssign?.id || "",
     associate_name: initialData?.associate_name || selfAssign?.name || "",
   });
@@ -741,6 +775,8 @@ function PropertyForm({ initialData, onClose, onSubmit, associates, isAdmin, cur
         ...formData,
         images: finalImages,
         map_image: finalMapImage || null,
+        image_url: buildPropertyMeta(formData.nearby_locations),
+        nearby_locations: undefined,
         associate_id: formData.associate_id || null,
         associate_name: formData.associate_name || null,
       });
@@ -952,6 +988,63 @@ return (
           </div>
         </div>
       </div>
+
+      {isAdmin && (
+        <div className="space-y-3 pt-2">
+          <div className="flex items-center justify-between gap-3">
+            <Label className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-2">
+              <MapPin className="w-3.5 h-3.5 text-indigo-500" /> Nearby Locations
+            </Label>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-8 rounded-lg px-3 text-xs"
+              onClick={() => setFormData({
+                ...formData,
+                nearby_locations: [...formData.nearby_locations, ""],
+              })}
+            >
+              <Plus className="w-3.5 h-3.5 mr-1" />
+              Add Nearby
+            </Button>
+          </div>
+
+          <div className="space-y-2">
+            {formData.nearby_locations.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-center text-xs text-slate-400">
+                No nearby details added.
+              </div>
+            ) : (
+              formData.nearby_locations.map((item, idx) => (
+                <div key={idx} className="flex gap-2">
+                  <Textarea
+                    className="min-h-12 resize-none rounded-xl bg-slate-50 border-slate-200 text-sm"
+                    placeholder="e.g. 1.5 km from Satellite City, Naubatpur"
+                    value={item}
+                    onChange={(e) => {
+                      const updated = [...formData.nearby_locations];
+                      updated[idx] = e.target.value;
+                      setFormData({ ...formData, nearby_locations: updated });
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-12 w-12 shrink-0 rounded-xl text-red-500 hover:bg-red-50"
+                    onClick={() => setFormData({
+                      ...formData,
+                      nearby_locations: formData.nearby_locations.filter((_, i) => i !== idx),
+                    })}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Action Buttons */}
       <div className="flex gap-3 pt-4">

@@ -35,6 +35,7 @@ INSERT INTO properties (
   type,
   price_range,
   status,
+  image_url,
   images,
   map_image,
   associate_id,
@@ -46,6 +47,7 @@ INSERT INTO properties (
   'plot',
   'Rs 1,199/sqft',
   'available',
+  'mg-meta:{"nearby_locations":["1.5 km from Satellite City, Naubatpur","2.5 km from NH-139 (AIIMS - Aurangabad)","1.4 km from Saher Rampur Road - Dulhin Bazar Road","Near historical Surya Mandir, Mahajpura","1 km from AIIMS - Aurangabad Nahar Road","7 minutes from Bihta - Sarmera Road (SH-78)","5 minutes from Naubatpur Block and Malti Dhari College","7 km from Bikram Registry Court"]}',
   '{}',
   '/property-maps/uchauri-naubatpur-plot-map.png',
   NULL,
@@ -56,6 +58,7 @@ ON CONFLICT (id) DO UPDATE SET
   location = EXCLUDED.location,
   type = EXCLUDED.type,
   price_range = EXCLUDED.price_range,
+  image_url = EXCLUDED.image_url,
   images = EXCLUDED.images,
   map_image = EXCLUDED.map_image;
 
