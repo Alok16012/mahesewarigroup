@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PlotUnit } from "@/types/database";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,11 @@ const STATUS_STYLE = {
   sold:      { bg: "#ef4444", label: "Sold",       text: "white" },
 };
 
+const formatPrice = (value?: number) => {
+  if (!value) return "-";
+  return value >= 10000000 ? `Rs ${(value / 10000000).toFixed(2)} Cr` : `Rs ${(value / 100000).toFixed(2)} L`;
+};
+
 type PlotMapProps = {
   propertyId: string;
   plots: PlotUnit[];
@@ -42,28 +47,43 @@ export default function PlotMap({ propertyId, plots, onUpdate, readOnly = false 
   const [addOpen, setAddOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  useEffect(() => {
+    setLocalPlots(plots);
+  }, [plots]);
+
+  const sortedPlots = useMemo(
+    () => [...localPlots].sort((a, b) =>
+      a.unit_number.localeCompare(b.unit_number, undefined, { numeric: true, sensitivity: "base" })
+    ),
+    [localPlots]
+  );
+
   const counts = {
-    available: localPlots.filter((p) => p.status === "available").length,
-    reserved:  localPlots.filter((p) => p.status === "reserved").length,
-    sold:      localPlots.filter((p) => p.status === "sold").length,
+    available: sortedPlots.filter((p) => p.status === "available").length,
+    reserved:  sortedPlots.filter((p) => p.status === "reserved").length,
+    sold:      sortedPlots.filter((p) => p.status === "sold").length,
   };
 
   const updatePlotStatus = async (plot: PlotUnit, newStatus: PlotUnit["status"], buyerName?: string) => {
     setSaving(true);
-    const updated = { ...plot, status: newStatus, buyer_name: buyerName || plot.buyer_name };
+    const previousPlots = localPlots;
+    const nextBuyer = newStatus === "available" ? null : buyerName || plot.buyer_name || null;
+    const updated = { ...plot, status: newStatus, buyer_name: nextBuyer };
     const newPlots = localPlots.map((p) => (p.id === plot.id ? updated : p));
     setLocalPlots(newPlots);
     onUpdate?.(newPlots);
 
     if (isSupabaseConfigured()) {
       try {
-        await dbMutate("update", "plot_units", { status: newStatus, buyer_name: buyerName || plot.buyer_name }, plot.id);
-        toast.success(`Plot ${plot.unit_number} → ${newStatus}`);
+        await dbMutate("update", "plot_units", { status: newStatus, buyer_name: nextBuyer }, plot.id);
+        toast.success(`Plot ${plot.unit_number} updated`);
       } catch {
+        setLocalPlots(previousPlots);
+        onUpdate?.(previousPlots);
         toast.error("Failed to update plot");
       }
     } else {
-      toast.success(`Plot ${plot.unit_number} → ${newStatus} (Demo)`);
+      toast.success(`Plot ${plot.unit_number} updated (Demo)`);
     }
     setSaving(false);
     setSelected(null);
@@ -127,22 +147,23 @@ export default function PlotMap({ propertyId, plots, onUpdate, readOnly = false 
       {/* Grid */}
       {localPlots.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground text-sm border-2 border-dashed rounded-xl">
-          No plots added yet. Click "Add Plot" to start building the map.
+          No plots added yet. Click Add Plot to start building the map.
         </div>
       ) : (
         <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(72px, 1fr))" }}>
-          {localPlots.map((plot) => {
+          {sortedPlots.map((plot) => {
             const style = STATUS_STYLE[plot.status];
             return (
               <button
                 key={plot.id}
                 onClick={() => !readOnly && setSelected(plot)}
-                className="relative rounded-lg p-2 text-center transition-all hover:scale-105 hover:shadow-lg border-2 border-white/20 group"
+                className="relative min-h-20 rounded-lg p-2 text-center transition-all hover:scale-105 hover:shadow-lg border-2 border-white/20 group"
                 style={{ background: style.bg, cursor: readOnly ? "default" : "pointer" }}
                 title={`${plot.unit_number} — ${style.label}${plot.buyer_name ? ` — ${plot.buyer_name}` : ""}`}
               >
                 <p className="text-white text-xs font-bold leading-tight">{plot.unit_number}</p>
                 {plot.size && <p className="text-white/70 text-[9px] mt-0.5">{plot.size}</p>}
+                {plot.price && <p className="text-white/80 text-[9px] mt-0.5">{formatPrice(plot.price)}</p>}
                 {plot.buyer_name && (
                   <p className="text-white/80 text-[9px] truncate mt-0.5">{plot.buyer_name.split(" ")[0]}</p>
                 )}
@@ -199,17 +220,28 @@ function PlotDetail({ plot, onSave, saving, onClose }: {
 }) {
   const [status, setStatus] = useState<PlotUnit["status"]>(plot.status);
   const [buyer, setBuyer] = useState(plot.buyer_name || "");
+  const statusStyle = STATUS_STYLE[status];
 
   return (
     <div className="space-y-4 pt-1">
+      <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 flex items-center justify-between gap-3">
+        <div>
+          <p className="text-xs text-muted-foreground">Current Status</p>
+          <p className="font-bold text-[#1e1b4b] capitalize">{plot.status}</p>
+        </div>
+        <Badge className="rounded-md font-bold" style={{ background: statusStyle.bg + "22", color: statusStyle.bg }}>
+          {statusStyle.label}
+        </Badge>
+      </div>
+
       <div className="grid grid-cols-2 gap-3 text-sm">
         {[
           { label: "Unit", value: plot.unit_number },
-          { label: "Size", value: plot.size || "—" },
-          { label: "Facing", value: plot.facing || "—" },
-          { label: "Price", value: plot.price ? `₹${(plot.price / 100000).toFixed(1)}L` : "—" },
+          { label: "Area", value: plot.size || "-" },
+          { label: "Facing", value: plot.facing || "-" },
+          { label: "Listed Price", value: formatPrice(plot.price) },
         ].map((row) => (
-          <div key={row.label}>
+          <div key={row.label} className="rounded-xl border border-slate-100 p-3">
             <p className="text-xs text-muted-foreground">{row.label}</p>
             <p className="font-semibold text-[#1e1b4b]">{row.value}</p>
           </div>

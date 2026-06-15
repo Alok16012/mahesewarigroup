@@ -38,6 +38,28 @@ const bgPalette = [
 const formatPrice = (p: number) =>
   p >= 10000000 ? `₹${(p / 10000000).toFixed(2)} Cr` : `₹${(p / 100000).toFixed(1)} L`;
 
+const SITE_NOTES = {
+  uchauri: {
+    rate: "Rs 1,199/sqft",
+    sizeRange: "1080 sqft to 2736 sqft",
+    nearby: [
+      "1.5 km from Satellite City, Naubatpur",
+      "2.5 km from NH-139 (AIIMS - Aurangabad)",
+      "1.4 km from Saher Rampur Road - Dulhin Bazar Road",
+      "Near historical Surya Mandir, Mahajpura",
+      "1 km from AIIMS - Aurangabad Nahar Road",
+      "7 minutes from Bihta - Sarmera Road (SH-78)",
+      "5 minutes from Naubatpur Block and Malti Dhari College",
+      "7 km from Bikram Registry Court",
+    ],
+  },
+};
+
+const getSiteNotes = (property: Property) => {
+  const key = `${property.name} ${property.location}`.toLowerCase();
+  return key.includes("uchauri") || key.includes("naubatpur") ? SITE_NOTES.uchauri : null;
+};
+
 export default function PropertiesPage() {
   const [view, setView] = useState<"grid" | "list">("grid");
   const [search, setSearch] = useState("");
@@ -358,6 +380,12 @@ function PropertyDetailView({ property, onClose }: { property: Property; onClose
   const availableCount = plotUnits.filter(u => u.status === "available").length;
   const reservedCount = plotUnits.filter(u => u.status === "reserved").length;
   const soldCount = plotUnits.filter(u => u.status === "sold").length;
+  const siteNotes = getSiteNotes(property);
+  const plotSizes = plotUnits
+    .map((unit) => Number(String(unit.size || "").match(/\d+(\.\d+)?/)?.[0]))
+    .filter((value) => Number.isFinite(value) && value > 0);
+  const minSize = plotSizes.length ? Math.min(...plotSizes) : null;
+  const maxSize = plotSizes.length ? Math.max(...plotSizes) : null;
 
   return (
     <div className="flex flex-col lg:flex-row h-[70vh] lg:h-[80vh]">
@@ -555,6 +583,37 @@ function PropertyDetailView({ property, onClose }: { property: Property; onClose
               </div>
             </div>
           </div>
+
+          {property.type === "plot" && (
+            <div className="space-y-3">
+              <h4 className="font-bold text-[#1e1b4b] text-sm flex items-center gap-2">
+                <div className="w-1.5 h-5 rounded-full bg-[#f59e0b]" />
+                Plot Details
+              </h4>
+              <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
+                <div className="p-3 rounded-xl bg-amber-50 border border-amber-100">
+                  <p className="text-[9px] font-semibold text-amber-500 uppercase mb-0.5">Rate</p>
+                  <p className="text-sm font-bold text-amber-700">{siteNotes?.rate || property.price_range}</p>
+                </div>
+                <div className="p-3 rounded-xl bg-amber-50 border border-amber-100">
+                  <p className="text-[9px] font-semibold text-amber-500 uppercase mb-0.5">Plot Size</p>
+                  <p className="text-sm font-bold text-amber-700">
+                    {minSize && maxSize ? `${minSize} sqft - ${maxSize} sqft` : siteNotes?.sizeRange || "-"}
+                  </p>
+                </div>
+              </div>
+              {siteNotes && (
+                <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                  <p className="text-[9px] font-semibold text-slate-400 uppercase mb-2">Nearby Location</p>
+                  <div className="space-y-1.5">
+                    {siteNotes.nearby.map((item) => (
+                      <p key={item} className="text-xs text-slate-600 leading-relaxed">{item}</p>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Plot Map */}
           {property.type === "plot" && (

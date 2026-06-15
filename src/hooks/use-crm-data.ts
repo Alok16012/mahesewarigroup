@@ -147,8 +147,18 @@ export function useCrmData() {
   const fetchProperties = useCallback(async () => {
     if (!isSupabaseConfigured()) { setProperties(MOCK_PROPERTIES); setUsingMockData(true); return; }
     try {
-      const data = await dbSelect("properties");
-      setProperties(data);
+      const [data, plotUnits] = await Promise.all([dbSelect("properties"), dbSelect("plot_units")]);
+      const unitsByProperty = (plotUnits as PlotUnit[]).reduce<Record<string, PlotUnit[]>>((acc, unit) => {
+        if (!acc[unit.property_id]) acc[unit.property_id] = [];
+        acc[unit.property_id].push(unit);
+        return acc;
+      }, {});
+      setProperties((data as Property[]).map((property) => ({
+        ...property,
+        plot_units: (unitsByProperty[property.id] || []).sort((a, b) =>
+          a.unit_number.localeCompare(b.unit_number, undefined, { numeric: true, sensitivity: "base" })
+        ),
+      })));
     } catch { setProperties([]); }
   }, []);
 
@@ -229,6 +239,7 @@ export function useCrmData() {
         .channel("crm-changes")
         .on("postgres_changes", { event: "*", schema: "public", table: "leads" }, fetchLeads)
         .on("postgres_changes", { event: "*", schema: "public", table: "properties" }, fetchProperties)
+        .on("postgres_changes", { event: "*", schema: "public", table: "plot_units" }, fetchProperties)
         .on("postgres_changes", { event: "*", schema: "public", table: "sales" }, fetchSales)
         .on("postgres_changes", { event: "*", schema: "public", table: "telecallers" }, fetchTelecallers)
         .on("postgres_changes", { event: "*", schema: "public", table: "lead_followups" }, fetchFollowups)

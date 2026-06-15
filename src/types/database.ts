@@ -63,7 +63,7 @@ export interface PlotUnit {
   property_id: string;
   unit_number: string;
   status: "available" | "reserved" | "sold";
-  buyer_name?: string;
+  buyer_name?: string | null;
   price?: number;
   size?: string;
   facing?: string;
