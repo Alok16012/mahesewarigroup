@@ -34,6 +34,45 @@ const formatPrice = (value?: number) => {
   return value >= 10000000 ? `Rs ${(value / 10000000).toFixed(2)} Cr` : `Rs ${(value / 100000).toFixed(2)} L`;
 };
 
+const PLOT_META_PREFIX = "plot-meta:";
+
+type PlotDealDetails = {
+  buyer_name?: string | null;
+  telecaller_name?: string | null;
+  final_amount?: number | null;
+};
+
+const parsePlotDealDetails = (plot: PlotUnit): PlotDealDetails => {
+  if (typeof plot.buyer_name === "string" && plot.buyer_name.startsWith(PLOT_META_PREFIX)) {
+    try {
+      const parsed = JSON.parse(plot.buyer_name.slice(PLOT_META_PREFIX.length));
+      return {
+        buyer_name: typeof parsed.buyer_name === "string" ? parsed.buyer_name : null,
+        telecaller_name: typeof parsed.telecaller_name === "string" ? parsed.telecaller_name : null,
+        final_amount: typeof parsed.final_amount === "number" ? parsed.final_amount : null,
+      };
+    } catch {
+      return {};
+    }
+  }
+
+  return {
+    buyer_name: plot.buyer_name || null,
+    telecaller_name: plot.telecaller_name || null,
+    final_amount: plot.final_amount || null,
+  };
+};
+
+const buildPlotDealValue = (status: PlotUnit["status"], details: PlotDealDetails) => {
+  if (status === "available") return null;
+
+  return `${PLOT_META_PREFIX}${JSON.stringify({
+    buyer_name: details.buyer_name?.trim() || null,
+    telecaller_name: details.telecaller_name?.trim() || null,
+    final_amount: details.final_amount || null,
+  })}`;
+};
+
 type PlotMapProps = {
   propertyId: string;
   plots: PlotUnit[];
@@ -64,11 +103,17 @@ export default function PlotMap({ propertyId, plots, onUpdate, readOnly = false 
     sold:      sortedPlots.filter((p) => p.status === "sold").length,
   };
 
-  const updatePlotStatus = async (plot: PlotUnit, newStatus: PlotUnit["status"], buyerName?: string) => {
+  const updatePlotStatus = async (plot: PlotUnit, newStatus: PlotUnit["status"], dealDetails: PlotDealDetails) => {
     setSaving(true);
     const previousPlots = localPlots;
-    const nextBuyer = newStatus === "available" ? null : buyerName || plot.buyer_name || null;
-    const updated = { ...plot, status: newStatus, buyer_name: nextBuyer };
+    const nextBuyer = buildPlotDealValue(newStatus, dealDetails);
+    const updated = {
+      ...plot,
+      status: newStatus,
+      buyer_name: nextBuyer,
+      telecaller_name: newStatus === "available" ? null : dealDetails.telecaller_name || null,
+      final_amount: newStatus === "available" ? null : dealDetails.final_amount || null,
+    };
     const newPlots = localPlots.map((p) => (p.id === plot.id ? updated : p));
     setLocalPlots(newPlots);
     onUpdate?.(newPlots);
@@ -153,19 +198,22 @@ export default function PlotMap({ propertyId, plots, onUpdate, readOnly = false 
         <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(72px, 1fr))" }}>
           {sortedPlots.map((plot) => {
             const style = STATUS_STYLE[plot.status];
+            const deal = parsePlotDealDetails(plot);
             return (
               <button
                 key={plot.id}
                 onClick={() => !readOnly && setSelected(plot)}
                 className="relative min-h-20 rounded-lg p-2 text-center transition-all hover:scale-105 hover:shadow-lg border-2 border-white/20 group"
                 style={{ background: style.bg, cursor: readOnly ? "default" : "pointer" }}
-                title={`${plot.unit_number} — ${style.label}${plot.buyer_name ? ` — ${plot.buyer_name}` : ""}`}
+                title={`${plot.unit_number} — ${style.label}${deal.buyer_name ? ` — ${deal.buyer_name}` : ""}`}
               >
                 <p className="text-white text-xs font-bold leading-tight">{plot.unit_number}</p>
                 {plot.size && <p className="text-white/70 text-[9px] mt-0.5">{plot.size}</p>}
-                {plot.price && <p className="text-white/80 text-[9px] mt-0.5">{formatPrice(plot.price)}</p>}
-                {plot.buyer_name && (
-                  <p className="text-white/80 text-[9px] truncate mt-0.5">{plot.buyer_name.split(" ")[0]}</p>
+                <p className="text-white/80 text-[9px] mt-0.5">
+                  {deal.final_amount ? formatPrice(deal.final_amount) : formatPrice(plot.price)}
+                </p>
+                {deal.buyer_name && (
+                  <p className="text-white/80 text-[9px] truncate mt-0.5">{deal.buyer_name.split(" ")[0]}</p>
                 )}
                 {!readOnly && (
                   <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 rounded-lg transition-opacity flex items-center justify-center">
@@ -214,13 +262,17 @@ export default function PlotMap({ propertyId, plots, onUpdate, readOnly = false 
 
 function PlotDetail({ plot, onSave, saving, onClose }: {
   plot: PlotUnit;
-  onSave: (plot: PlotUnit, status: PlotUnit["status"], buyer?: string) => void;
+  onSave: (plot: PlotUnit, status: PlotUnit["status"], details: PlotDealDetails) => void;
   saving: boolean;
   onClose: () => void;
 }) {
+  const deal = parsePlotDealDetails(plot);
   const [status, setStatus] = useState<PlotUnit["status"]>(plot.status);
-  const [buyer, setBuyer] = useState(plot.buyer_name || "");
+  const [buyer, setBuyer] = useState(deal.buyer_name || "");
+  const [telecaller, setTelecaller] = useState(deal.telecaller_name || "");
+  const [finalAmount, setFinalAmount] = useState(deal.final_amount ? String(deal.final_amount) : "");
   const statusStyle = STATUS_STYLE[status];
+  const finalAmountNumber = finalAmount ? Number(finalAmount) : null;
 
   return (
     <div className="space-y-4 pt-1">
@@ -240,6 +292,8 @@ function PlotDetail({ plot, onSave, saving, onClose }: {
           { label: "Area", value: plot.size || "-" },
           { label: "Facing", value: plot.facing || "-" },
           { label: "Listed Price", value: formatPrice(plot.price) },
+          { label: "Final Amount", value: deal.final_amount ? formatPrice(deal.final_amount) : "-" },
+          { label: "Telecaller", value: deal.telecaller_name || "-" },
         ].map((row) => (
           <div key={row.label} className="rounded-xl border border-slate-100 p-3">
             <p className="text-xs text-muted-foreground">{row.label}</p>
@@ -263,17 +317,43 @@ function PlotDetail({ plot, onSave, saving, onClose }: {
       </div>
 
       {(status === "sold" || status === "reserved") && (
-        <div className="space-y-1.5">
-          <Label className="text-sm font-medium text-[#1e1b4b]">
-            <User className="w-3.5 h-3.5 inline mr-1" />
-            {status === "sold" ? "Buyer Name" : "Reserved For"}
-          </Label>
-          <Input
-            placeholder="e.g. Rajesh Kumar"
-            className="h-10"
-            value={buyer}
-            onChange={(e) => setBuyer(e.target.value)}
-          />
+        <div className="grid grid-cols-1 gap-3">
+          <div className="space-y-1.5">
+            <Label className="text-sm font-medium text-[#1e1b4b]">
+              <User className="w-3.5 h-3.5 inline mr-1" />
+              {status === "sold" ? "Buyer Name" : "Reserved For"}
+            </Label>
+            <Input
+              placeholder="e.g. Rajesh Kumar"
+              className="h-10"
+              value={buyer}
+              onChange={(e) => setBuyer(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-sm font-medium text-[#1e1b4b]">Telecaller Name</Label>
+            <Input
+              placeholder="e.g. Sunita Patel"
+              className="h-10"
+              value={telecaller}
+              onChange={(e) => setTelecaller(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-sm font-medium text-[#1e1b4b]">Final Amount After Negotiation</Label>
+            <div className="relative">
+              <IndianRupee className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="e.g. 1850000"
+                className="h-10 pl-9"
+                value={finalAmount}
+                inputMode="numeric"
+                onChange={(e) => setFinalAmount(e.target.value.replace(/[^\d.]/g, ""))}
+              />
+            </div>
+          </div>
         </div>
       )}
 
@@ -281,7 +361,11 @@ function PlotDetail({ plot, onSave, saving, onClose }: {
         <Button variant="outline" className="flex-1" onClick={onClose} disabled={saving}>Cancel</Button>
         <Button className="flex-1" disabled={saving}
           style={{ background: "linear-gradient(135deg, #1e1b4b, #8b5cf6)", color: "white" }}
-          onClick={() => onSave(plot, status, buyer || undefined)}>
+          onClick={() => onSave(plot, status, {
+            buyer_name: buyer || null,
+            telecaller_name: telecaller || null,
+            final_amount: finalAmountNumber && Number.isFinite(finalAmountNumber) ? finalAmountNumber : null,
+          })}>
           {saving ? "Saving…" : "Update Plot"}
         </Button>
       </div>

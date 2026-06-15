@@ -64,6 +64,8 @@ export interface PlotUnit {
   unit_number: string;
   status: "available" | "reserved" | "sold";
   buyer_name?: string | null;
+  telecaller_name?: string | null;
+  final_amount?: number | null;
   price?: number;
   size?: string;
   facing?: string;
