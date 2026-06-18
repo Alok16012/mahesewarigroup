@@ -23,6 +23,17 @@ async function dbMutate(op: "insert" | "update" | "delete", table: string, data?
   return json;
 }
 
+async function reservePlot(id: string, data: Record<string, unknown>) {
+  const res = await fetch("/api/db", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ op: "reserve-plot", id, data }),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json.error || "Plot booking failed");
+  return json;
+}
+
 const STATUS_STYLE = {
   available: { bg: "#22c55e", label: "Available", text: "white" },
   reserved:  { bg: "#f59e0b", label: "Reserved",  text: "white" },
@@ -78,9 +89,18 @@ type PlotMapProps = {
   plots: PlotUnit[];
   onUpdate?: (plots: PlotUnit[]) => void;
   readOnly?: boolean;
+  bookingMode?: boolean;
+  currentUserName?: string;
 };
 
-export default function PlotMap({ propertyId, plots, onUpdate, readOnly = false }: PlotMapProps) {
+export default function PlotMap({
+  propertyId,
+  plots,
+  onUpdate,
+  readOnly = false,
+  bookingMode = false,
+  currentUserName,
+}: PlotMapProps) {
   const [localPlots, setLocalPlots] = useState<PlotUnit[]>(plots);
   const [selected, setSelected] = useState<PlotUnit | null>(null);
   const [addOpen, setAddOpen] = useState(false);
@@ -120,12 +140,17 @@ export default function PlotMap({ propertyId, plots, onUpdate, readOnly = false 
 
     if (isSupabaseConfigured()) {
       try {
-        await dbMutate("update", "plot_units", { status: newStatus, buyer_name: nextBuyer }, plot.id);
-        toast.success(`Plot ${plot.unit_number} updated`);
-      } catch {
+        if (bookingMode) {
+          await reservePlot(plot.id, { buyer_name: nextBuyer });
+          toast.success(`Plot ${plot.unit_number} reserved`);
+        } else {
+          await dbMutate("update", "plot_units", { status: newStatus, buyer_name: nextBuyer }, plot.id);
+          toast.success(`Plot ${plot.unit_number} updated`);
+        }
+      } catch (error) {
         setLocalPlots(previousPlots);
         onUpdate?.(previousPlots);
-        toast.error("Failed to update plot");
+        toast.error((error as Error).message || "Failed to update plot");
       }
     } else {
       toast.success(`Plot ${plot.unit_number} updated (Demo)`);
@@ -181,7 +206,7 @@ export default function PlotMap({ propertyId, plots, onUpdate, readOnly = false 
             </div>
           ))}
         </div>
-        {!readOnly && (
+        {!readOnly && !bookingMode && (
           <Button size="sm" className="h-8 text-xs" style={{ background: "#6366f1", color: "white" }}
             onClick={() => setAddOpen(true)}>
             + Add Plot
@@ -239,6 +264,8 @@ export default function PlotMap({ propertyId, plots, onUpdate, readOnly = false 
                 onSave={updatePlotStatus}
                 saving={saving}
                 onClose={() => setSelected(null)}
+                bookingMode={bookingMode}
+                currentUserName={currentUserName}
               />
             )}
           </div>
@@ -260,19 +287,23 @@ export default function PlotMap({ propertyId, plots, onUpdate, readOnly = false 
   );
 }
 
-function PlotDetail({ plot, onSave, saving, onClose }: {
+function PlotDetail({ plot, onSave, saving, onClose, bookingMode = false, currentUserName }: {
   plot: PlotUnit;
   onSave: (plot: PlotUnit, status: PlotUnit["status"], details: PlotDealDetails) => void;
   saving: boolean;
   onClose: () => void;
+  bookingMode?: boolean;
+  currentUserName?: string;
 }) {
   const deal = parsePlotDealDetails(plot);
   const [status, setStatus] = useState<PlotUnit["status"]>(plot.status);
   const [buyer, setBuyer] = useState(deal.buyer_name || "");
-  const [telecaller, setTelecaller] = useState(deal.telecaller_name || "");
+  const [telecaller, setTelecaller] = useState(deal.telecaller_name || currentUserName || "");
   const [finalAmount, setFinalAmount] = useState(deal.final_amount ? String(deal.final_amount) : "");
   const statusStyle = STATUS_STYLE[status];
   const finalAmountNumber = finalAmount ? Number(finalAmount) : null;
+  const canBook = bookingMode && plot.status === "available";
+  const canManage = !bookingMode;
 
   return (
     <div className="space-y-4 pt-1">
@@ -302,26 +333,28 @@ function PlotDetail({ plot, onSave, saving, onClose }: {
         ))}
       </div>
 
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium text-[#1e1b4b]">Status</Label>
-        <Select value={status} onValueChange={(v) => setStatus(v as PlotUnit["status"])}>
-          <SelectTrigger className="h-10">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="available">Available</SelectItem>
-            <SelectItem value="reserved">Reserved</SelectItem>
-            <SelectItem value="sold">Sold</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      {canManage && (
+        <div className="space-y-1.5">
+          <Label className="text-sm font-medium text-[#1e1b4b]">Status</Label>
+          <Select value={status} onValueChange={(v) => setStatus(v as PlotUnit["status"])}>
+            <SelectTrigger className="h-10">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="available">Available</SelectItem>
+              <SelectItem value="reserved">Reserved</SelectItem>
+              <SelectItem value="sold">Sold</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
-      {(status === "sold" || status === "reserved") && (
+      {((canManage && (status === "sold" || status === "reserved")) || canBook) && (
         <div className="grid grid-cols-1 gap-3">
           <div className="space-y-1.5">
             <Label className="text-sm font-medium text-[#1e1b4b]">
               <User className="w-3.5 h-3.5 inline mr-1" />
-              {status === "sold" ? "Buyer Name" : "Reserved For"}
+              {canBook ? "Reserve For / Buyer Name" : status === "sold" ? "Buyer Name" : "Reserved For"}
             </Label>
             <Input
               placeholder="e.g. Rajesh Kumar"
@@ -335,9 +368,10 @@ function PlotDetail({ plot, onSave, saving, onClose }: {
             <Label className="text-sm font-medium text-[#1e1b4b]">Telecaller Name</Label>
             <Input
               placeholder="e.g. Sunita Patel"
-              className="h-10"
+              className="h-10 bg-slate-50"
               value={telecaller}
               onChange={(e) => setTelecaller(e.target.value)}
+              readOnly={bookingMode}
             />
           </div>
 
@@ -357,17 +391,25 @@ function PlotDetail({ plot, onSave, saving, onClose }: {
         </div>
       )}
 
+      {bookingMode && plot.status !== "available" && (
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
+          This plot is already {plot.status}. Telecaller can only book available plots.
+        </div>
+      )}
+
       <div className="flex gap-3 pt-1">
         <Button variant="outline" className="flex-1" onClick={onClose} disabled={saving}>Cancel</Button>
-        <Button className="flex-1" disabled={saving}
-          style={{ background: "linear-gradient(135deg, #1e1b4b, #8b5cf6)", color: "white" }}
-          onClick={() => onSave(plot, status, {
-            buyer_name: buyer || null,
-            telecaller_name: telecaller || null,
-            final_amount: finalAmountNumber && Number.isFinite(finalAmountNumber) ? finalAmountNumber : null,
-          })}>
-          {saving ? "Saving…" : "Update Plot"}
-        </Button>
+        {(canManage || canBook) && (
+          <Button className="flex-1" disabled={saving || (canBook && !buyer.trim())}
+            style={{ background: canBook ? "#f59e0b" : "linear-gradient(135deg, #1e1b4b, #8b5cf6)", color: "white" }}
+            onClick={() => onSave(plot, canBook ? "reserved" : status, {
+              buyer_name: buyer || null,
+              telecaller_name: telecaller || null,
+              final_amount: finalAmountNumber && Number.isFinite(finalAmountNumber) ? finalAmountNumber : null,
+            })}>
+            {saving ? "Saving…" : canBook ? "Reserve Plot" : "Update Plot"}
+          </Button>
+        )}
       </div>
     </div>
   );

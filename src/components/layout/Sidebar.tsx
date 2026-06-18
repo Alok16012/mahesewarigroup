@@ -13,7 +13,7 @@ import { toast } from "sonner";
 
 const navItems = [
   { href: "/dashboard",   icon: LayoutDashboard, label: "Dashboard",           adminOnly: false, telecallerHidden: false },
-  { href: "/properties",  icon: Building2,       label: "Properties",          adminOnly: false, telecallerHidden: true  },
+  { href: "/properties",  icon: Building2,       label: "Plot Inventory",      adminOnly: false, telecallerHidden: false },
   { href: "/leads",       icon: Target,          label: "My Leads",            adminOnly: false, telecallerHidden: false },
   { href: "/telecallers", icon: Headphones,      label: "Telecallers",         adminOnly: true,  telecallerHidden: true  },
   { href: "/marketing-managers", icon: Users,    label: "Marketing Managers",  adminOnly: true,  telecallerHidden: true  },

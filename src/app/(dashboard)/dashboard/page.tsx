@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,7 @@ import {
   Clock, CheckCircle2, ChevronRight, Star, IndianRupee,
 } from "lucide-react";
 import { useCrmData } from "@/hooks/use-crm-data";
+import { useCurrentUser } from "@/hooks/use-auth";
 
 const formatINR = (v: number) =>
   v >= 10000000 ? `₹${(v / 10000000).toFixed(1)}Cr` : `₹${(v / 100000).toFixed(0)}L`;
@@ -24,11 +26,128 @@ const STATUS_COLORS: Record<string, string> = {
 
 export default function DashboardPage() {
   const { leads, properties, associates, sales, telecallers, loading } = useCrmData();
+  const { user, loading: userLoading } = useCurrentUser();
 
-  if (loading) {
+  if (loading || userLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#6366f1]"></div>
+      </div>
+    );
+  }
+
+  if (user?.role === "telecaller") {
+    const allPlots = properties.flatMap((property) => property.plot_units || []);
+    const ownLeads = leads.filter((lead) => lead.telecaller_id === user.id);
+    const plotCounts = {
+      available: allPlots.filter((plot) => plot.status === "available").length,
+      reserved: allPlots.filter((plot) => plot.status === "reserved").length,
+      sold: allPlots.filter((plot) => plot.status === "sold").length,
+    };
+
+    return (
+      <div className="space-y-5 animate-fade-in">
+        <div className="flex items-start sm:items-center justify-between gap-3 flex-wrap">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-[#1e1b4b]">
+              Welcome, {user.full_name}
+            </h1>
+            <p className="text-sm text-gray-500 mt-0.5">Check live plot availability before booking.</p>
+          </div>
+          <Link
+            href="/properties"
+            className="inline-flex h-10 items-center justify-center rounded-xl bg-indigo-600 px-4 text-sm font-semibold text-white hover:bg-indigo-700"
+          >
+            Open Plot Inventory
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          {[
+            { label: "Total Plots", value: allPlots.length, color: "#6366f1", bg: "#eef2ff" },
+            { label: "Available", value: plotCounts.available, color: "#16a34a", bg: "#dcfce7" },
+            { label: "Reserved", value: plotCounts.reserved, color: "#d97706", bg: "#fef3c7" },
+            { label: "Sold", value: plotCounts.sold, color: "#dc2626", bg: "#fee2e2" },
+          ].map((item) => (
+            <Card key={item.label} className="p-4 bg-white border-0 shadow-sm rounded-2xl">
+              <div className="w-9 h-9 rounded-xl mb-3" style={{ background: item.bg }} />
+              <p className="text-2xl font-bold" style={{ color: item.color }}>{item.value}</p>
+              <p className="text-xs font-medium text-gray-500 mt-1">{item.label}</p>
+            </Card>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="lg:col-span-2 space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="font-bold text-[#1e1b4b]">Property Plot Status</h2>
+              <span className="text-xs text-gray-400">{properties.length} properties</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {properties.map((property) => {
+                const plots = property.plot_units || [];
+                const available = plots.filter((plot) => plot.status === "available").length;
+                const reserved = plots.filter((plot) => plot.status === "reserved").length;
+                const sold = plots.filter((plot) => plot.status === "sold").length;
+                return (
+                  <Card key={property.id} className="p-4 bg-white border-0 shadow-sm rounded-2xl">
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <div>
+                        <p className="font-bold text-sm text-[#1e1b4b]">{property.name}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">{property.location}</p>
+                      </div>
+                      <Building2 className="w-5 h-5 text-indigo-500 shrink-0" />
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 mb-3">
+                      <div className="rounded-lg bg-green-50 p-2 text-center">
+                        <p className="text-base font-bold text-green-600">{available}</p>
+                        <p className="text-[10px] text-green-700">Available</p>
+                      </div>
+                      <div className="rounded-lg bg-amber-50 p-2 text-center">
+                        <p className="text-base font-bold text-amber-600">{reserved}</p>
+                        <p className="text-[10px] text-amber-700">Reserved</p>
+                      </div>
+                      <div className="rounded-lg bg-red-50 p-2 text-center">
+                        <p className="text-base font-bold text-red-600">{sold}</p>
+                        <p className="text-[10px] text-red-700">Sold</p>
+                      </div>
+                    </div>
+                    <Link
+                      href="/properties"
+                      className="inline-flex w-full h-9 items-center justify-center rounded-xl border border-slate-200 text-xs font-medium text-[#1e1b4b] hover:bg-slate-50"
+                    >
+                      View and Book Plot
+                    </Link>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+
+          <Card className="p-5 bg-white border-0 shadow-sm rounded-2xl h-fit">
+            <h2 className="font-bold text-[#1e1b4b] mb-4">My Leads</h2>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-500">Assigned Leads</span>
+                <span className="font-bold text-indigo-600">{ownLeads.length}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-500">New</span>
+                <span className="font-bold text-[#1e1b4b]">{ownLeads.filter((lead) => lead.status === "new").length}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-500">Converted</span>
+                <span className="font-bold text-green-600">{ownLeads.filter((lead) => lead.status === "converted").length}</span>
+              </div>
+            </div>
+            <Link
+              href="/leads"
+              className="inline-flex w-full mt-4 h-9 items-center justify-center rounded-xl bg-[#1e1b4b] text-sm font-semibold text-white hover:bg-[#0f0d24]"
+            >
+              Open My Leads
+            </Link>
+          </Card>
+        </div>
       </div>
     );
   }

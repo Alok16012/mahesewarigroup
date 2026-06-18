@@ -12,6 +12,7 @@ type Body =
   | { op: "select"; table: string }
   | { op: "telecaller-login"; username: string; password: string }
   | { op: "marketing-login"; username: string; password: string }
+  | { op: "reserve-plot"; id: string; data: Record<string, unknown> }
   | { op: "insert"; table: string; data: Record<string, unknown> }
   | { op: "update"; table: string; id: string; data: Record<string, unknown> }
   | { op: "delete"; table: string; id: string };
@@ -45,6 +46,19 @@ export async function POST(req: NextRequest) {
         .eq("phone", MARKETING_MANAGER_MARKER)
         .single();
       if (error || !data) return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
+      return NextResponse.json({ data });
+    }
+
+    if (body.op === "reserve-plot") {
+      const { data, error } = await admin
+        .from("plot_units")
+        .update({ ...body.data, status: "reserved" })
+        .eq("id", body.id)
+        .eq("status", "available")
+        .select()
+        .maybeSingle();
+      if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+      if (!data) return NextResponse.json({ error: "Plot is no longer available" }, { status: 409 });
       return NextResponse.json({ data });
     }
 

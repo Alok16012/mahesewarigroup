@@ -105,14 +105,16 @@ export default function PropertiesPage() {
   const { user } = useCurrentUser();
   const isAdmin = user?.role === "admin";
   const isMarketingManager = user?.role === "marketing-manager";
+  const isTelecaller = user?.role === "telecaller";
+  const isListingOnly = isMarketingManager || isTelecaller;
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   // Non-admins only see properties tied to themselves or their downline; admin sees all.
   const visibleProperties = useMemo(() => {
-    if (isAdmin || isMarketingManager || !user) return properties || [];
+    if (isAdmin || isMarketingManager || isTelecaller || !user) return properties || [];
     const allowed = new Set<string>([user.id, ...getDownlineIds(user.referral_code, associates)]);
     return (properties || []).filter((p) => p.associate_id && allowed.has(p.associate_id));
-  }, [properties, associates, isAdmin, isMarketingManager, user]);
+  }, [properties, associates, isAdmin, isMarketingManager, isTelecaller, user]);
 
   const filtered = visibleProperties.filter((p) => {
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) || p.location.toLowerCase().includes(search.toLowerCase());
@@ -155,11 +157,13 @@ export default function PropertiesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-[#1e1b4b]">Properties</h1>
-          <p className="text-sm text-gray-400 mt-0.5">Manage all real estate listings</p>
+          <p className="text-sm text-gray-400 mt-0.5">
+            {isTelecaller ? "Check live plot status and reserve available plots" : "Manage all real estate listings"}
+          </p>
         </div>
         <div className="flex gap-3">
           {/* Plain button — no DialogTrigger, avoids controlled-mode conflict */}
-          {!isMarketingManager && (
+          {!isListingOnly && (
             <button
               onClick={handleAdd}
               className="h-10 px-4 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 shadow-md flex items-center gap-2 transition-colors">
@@ -208,6 +212,8 @@ export default function PropertiesPage() {
               key={viewingProperty.id}
               property={viewingProperty}
               readOnly={isMarketingManager}
+              bookingMode={isTelecaller}
+              currentUserName={user?.full_name}
               onClose={() => setDetailOpen(false)}
             />
           )}
@@ -304,7 +310,7 @@ export default function PropertiesPage() {
                   </div>
                   <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                     <button onClick={(e) => { e.stopPropagation(); handleView(prop); }} className="w-9 h-9 rounded-xl bg-white shadow-xl flex items-center justify-center text-[#6366f1] hover:scale-110 transition-transform active:scale-95"><Eye className="w-4.5 h-4.5" /></button>
-                    {!isMarketingManager && (
+                    {!isListingOnly && (
                       <>
                         <button onClick={(e) => { e.stopPropagation(); handleEdit(prop); }} className="w-9 h-9 rounded-xl bg-white shadow-xl flex items-center justify-center text-[#6366f1] hover:scale-110 transition-transform active:scale-95"><Edit className="w-4.5 h-4.5" /></button>
                         <button onClick={(e) => { e.stopPropagation(); setDeleteConfirmId(prop.id); }} className="w-9 h-9 rounded-xl bg-white shadow-xl flex items-center justify-center text-red-500 hover:scale-110 transition-transform active:scale-95"><Trash2 className="w-4.5 h-4.5" /></button>
@@ -393,7 +399,7 @@ export default function PropertiesPage() {
                     <TableCell>
                       <div className="flex gap-1 justify-end">
                         <Button onClick={() => handleView(prop)} variant="ghost" size="icon" className="h-9 w-9 text-gray-400 hover:text-[#6366f1] hover:bg-[#ede9fe] rounded-xl transition-all"><Eye className="w-4 h-4" /></Button>
-                        {!isMarketingManager && (
+                        {!isListingOnly && (
                           <>
                             <Button onClick={() => handleEdit(prop)} variant="ghost" size="icon" className="h-9 w-9 text-gray-400 hover:text-[#6366f1] hover:bg-[#ede9fe] rounded-xl transition-all"><Edit className="w-4 h-4" /></Button>
                             <Button onClick={() => setDeleteConfirmId(prop.id)} variant="ghost" size="icon" className="h-9 w-9 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"><Trash2 className="w-4 h-4" /></Button>
@@ -412,7 +418,19 @@ export default function PropertiesPage() {
   );
 }
 
-function PropertyDetailView({ property, onClose, readOnly = false }: { property: Property; onClose: () => void; readOnly?: boolean }) {
+function PropertyDetailView({
+  property,
+  onClose,
+  readOnly = false,
+  bookingMode = false,
+  currentUserName,
+}: {
+  property: Property;
+  onClose: () => void;
+  readOnly?: boolean;
+  bookingMode?: boolean;
+  currentUserName?: string;
+}) {
   const [activeImage, setActiveImage] = useState(0);
   const [showMap, setShowMap] = useState(false);
   const [showSiteMap, setShowSiteMap] = useState(false);
@@ -667,7 +685,13 @@ function PropertyDetailView({ property, onClose, readOnly = false }: { property:
                 <div className="w-1.5 h-5 rounded-full bg-[#22c55e]" />
                 Plot Map
               </h4>
-              <PlotMap propertyId={property.id} plots={plotUnits} readOnly={readOnly} />
+              <PlotMap
+                propertyId={property.id}
+                plots={plotUnits}
+                readOnly={readOnly}
+                bookingMode={bookingMode}
+                currentUserName={currentUserName}
+              />
             </div>
           )}
         </div>
