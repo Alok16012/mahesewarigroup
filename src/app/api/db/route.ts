@@ -37,14 +37,28 @@ export async function POST(req: NextRequest) {
     }
 
     if (body.op === "marketing-login") {
-      const { data, error } = await admin
+      const loginQuery = admin
         .from("telecallers")
         .select("id, full_name, username, status")
         .eq("username", body.username)
         .eq("password", body.password)
-        .eq("status", "active")
-        .eq("phone", MARKETING_MANAGER_MARKER)
-        .single();
+        .eq("status", "active");
+
+      let { data, error } = await loginQuery.eq("staff_role", "marketing-manager").single();
+
+      // Keep existing environments working until the profile migration is run.
+      if (error?.code === "42703") {
+        const legacyResult = await admin
+          .from("telecallers")
+          .select("id, full_name, username, status")
+          .eq("username", body.username)
+          .eq("password", body.password)
+          .eq("status", "active")
+          .eq("phone", MARKETING_MANAGER_MARKER)
+          .single();
+        data = legacyResult.data;
+        error = legacyResult.error;
+      }
       if (error || !data) return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
       return NextResponse.json({ data });
     }
