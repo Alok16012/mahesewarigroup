@@ -17,11 +17,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   Plus, Search, Phone, Mail, IndianRupee,
   User, Calendar, Headphones, Clock, Trash2,
+  MessageSquare,
 } from "lucide-react";
 import { useCrmData } from "@/hooks/use-crm-data";
 import { useCurrentUser, getDownlineIds } from "@/hooks/use-auth";
 import { toast } from "sonner";
-import { Lead, LeadStatus, FollowUp } from "@/types/database";
+import { Lead, LeadStatus, FollowUp, Telecaller } from "@/types/database";
 
 const stages: { key: LeadStatus; label: string; color: string; textColor: string; borderColor: string }[] = [
   { key: "new",         label: "New",         color: "#eef2ff", textColor: "#6366f1", borderColor: "#6366f1" },
@@ -33,6 +34,15 @@ const stages: { key: LeadStatus; label: string; color: string; textColor: string
   { key: "lost",        label: "Lost",        color: "#fef2f2", textColor: "#dc2626", borderColor: "#ef4444" },
 ];
 
+const followupOutcomeLabel: Record<FollowUp["outcome"], { label: string; color: string; bg: string }> = {
+  pending:       { label: "Pending",        color: "#6366f1", bg: "#eef2ff" },
+  called:        { label: "Called",         color: "#3b82f6", bg: "#eff6ff" },
+  no_answer:     { label: "No Answer",      color: "#d97706", bg: "#fffbeb" },
+  interested:    { label: "Interested",     color: "#16a34a", bg: "#f0fdf4" },
+  not_interested:{ label: "Not Interested", color: "#dc2626", bg: "#fef2f2" },
+  callback:      { label: "Callback",       color: "#7c3aed", bg: "#f5f3ff" },
+};
+
 const formatINR = (v: number) =>
   v >= 10000000 ? `₹${(v / 10000000).toFixed(1)}Cr` : `₹${(v / 100000).toFixed(0)}L`;
 
@@ -41,6 +51,9 @@ const today = new Date().toISOString().split("T")[0];
 // Show a short, human-friendly reference instead of a raw DB UUID.
 const shortId = (id: string) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-/i.test(id) ? `#${id.slice(0, 8).toUpperCase()}` : id;
+
+const followupTime = (followup: FollowUp) =>
+  new Date(followup.created_at || followup.follow_up_date).getTime() || 0;
 
 export default function LeadsPage() {
   const [search, setSearch] = useState("");
@@ -57,7 +70,7 @@ export default function LeadsPage() {
   const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const {
-    leads, associates, properties, telecallers, loading,
+    leads, associates, properties, telecallers, followups, loading,
     addLead, updateLeadStatus, deleteLead, assignLeadToTelecaller, addFollowup,
   } = useCrmData();
   const { user } = useCurrentUser();
@@ -83,9 +96,20 @@ export default function LeadsPage() {
     );
   });
 
+  const followupsByLead = useMemo(() => {
+    const grouped: Record<string, FollowUp[]> = {};
+    followups.forEach((followup) => {
+      if (!grouped[followup.lead_id]) grouped[followup.lead_id] = [];
+      grouped[followup.lead_id].push(followup);
+    });
+    Object.values(grouped).forEach((items) => {
+      items.sort((a, b) => followupTime(b) - followupTime(a));
+    });
+    return grouped;
+  }, [followups]);
+
   const totalLeads = visibleLeads.length;
   const converted = visibleLeads.filter((l) => l.status === "converted").length;
-  const conversionRate = totalLeads > 0 ? Math.round((converted / totalLeads) * 100) : 0;
   const dueToday = visibleLeads.filter((l) => l.next_followup_date === today).length;
 
   const toggleSelect = (id: string) => {
@@ -271,7 +295,7 @@ export default function LeadsPage() {
                         />
                       </TableHead>
                     )}
-                    {["Lead", "Contact", "Property", "Budget", "Telecaller", "Status", "Next Followup", "Actions"].map((h) => (
+                    {["Lead", "Contact", "Property", "Budget", "Telecaller", "Status", "Last Remark", "Next Followup", "Actions"].map((h) => (
                       <TableHead key={h} className="font-semibold text-[#1e1b4b] text-xs">{h}</TableHead>
                     ))}
                   </TableRow>
@@ -282,6 +306,9 @@ export default function LeadsPage() {
                     const isLeadDueToday = lead.next_followup_date === today;
                     const overdue = lead.next_followup_date && lead.next_followup_date < today;
                     const isSelected = selectedLeads.has(lead.id);
+                    const leadFollowups = followupsByLead[lead.id] || [];
+                    const latestFollowup = leadFollowups[0];
+                    const latestOutcome = latestFollowup ? followupOutcomeLabel[latestFollowup.outcome] : null;
                     return (
                       <TableRow key={lead.id} className={`hover:bg-secondary/30 transition-colors ${isSelected ? "bg-[#eef2ff]/60" : ""}`}>
                         {user?.role === "admin" && (
@@ -333,6 +360,23 @@ export default function LeadsPage() {
                             {stage.label}
                           </Badge>
                         </TableCell>
+                        <TableCell className="max-w-[220px]">
+                          {latestFollowup && latestOutcome ? (
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-1.5">
+                                <Badge className="text-[10px] px-1.5 py-0.5" style={{ background: latestOutcome.bg, color: latestOutcome.color }}>
+                                  {latestOutcome.label}
+                                </Badge>
+                                <span className="text-[11px] text-muted-foreground">{latestFollowup.follow_up_date}</span>
+                              </div>
+                              <p className="text-xs text-[#1e1b4b] line-clamp-2">
+                                {latestFollowup.notes || "No remark added"}
+                              </p>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">No remark yet</span>
+                          )}
+                        </TableCell>
                         <TableCell>
                           {lead.next_followup_date ? (
                             <span className={`text-xs font-medium ${overdue ? "text-red-600" : isLeadDueToday ? "text-amber-600" : "text-muted-foreground"}`}>
@@ -346,7 +390,7 @@ export default function LeadsPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex gap-1">
-                            <Select onValueChange={(v) => updateLeadStatus(lead.id, v as any)}>
+                            <Select onValueChange={(v) => updateLeadStatus(lead.id, v as LeadStatus)}>
                               <SelectTrigger className="h-7 text-xs w-24 border-[#1e1b4b]/30">
                                 <SelectValue placeholder="Move to" />
                               </SelectTrigger>
@@ -365,9 +409,9 @@ export default function LeadsPage() {
                             )}
                             {(user?.role === "admin" || user?.role === "telecaller") && (
                               <Button variant="outline" size="sm" className="h-7 w-7 p-0 text-[#16a34a]"
-                                title="Add Follow-up"
+                                title={leadFollowups.length > 0 ? "View/Add Follow-up" : "Add Follow-up"}
                                 onClick={() => setFollowupLead(lead)}>
-                                <Calendar className="w-3 h-3" />
+                                {leadFollowups.length > 0 ? <MessageSquare className="w-3 h-3" /> : <Calendar className="w-3 h-3" />}
                               </Button>
                             )}
                             {user?.role === "admin" && (
@@ -406,6 +450,7 @@ export default function LeadsPage() {
         <AddFollowupModal
           lead={followupLead}
           telecallers={telecallers}
+          history={followupsByLead[followupLead.id] || []}
           currentUser={user}
           onClose={() => setFollowupLead(null)}
           onSubmit={async (data) => {
@@ -487,13 +532,13 @@ export default function LeadsPage() {
 
 function AddLeadForm({ onClose, onSubmit, currentUser, properties }: {
   onClose: () => void;
-  onSubmit: (data: any) => Promise<void>;
+  onSubmit: (data: Omit<Lead, "id" | "created_at">) => Promise<void>;
   currentUser: { id: string; full_name: string; role: string } | null;
   properties: { id: string; name: string }[];
 }) {
   const [formData, setFormData] = useState({
     name: "", phone: "", email: "", property_name: "",
-    budget: 5000000, source: "Website", status: "new" as any, notes: "",
+    budget: 5000000, source: "Website", status: "new" as LeadStatus, notes: "",
     associate_id: currentUser?.role === "marketing-manager" ? "" : currentUser?.id || "",
     associate_name: currentUser?.full_name || "Admin",
     telecaller_id: currentUser?.role === "marketing-manager" ? currentUser.id : "",
@@ -576,7 +621,7 @@ function AddLeadForm({ onClose, onSubmit, currentUser, properties }: {
         </div>
         <div className="space-y-1.5">
           <Label className="text-sm font-medium text-[#1e1b4b]">Initial Status</Label>
-          <Select value={formData.status} onValueChange={(v) => setFormData({ ...formData, status: v as any })}>
+          <Select value={formData.status} onValueChange={(v) => setFormData({ ...formData, status: v as LeadStatus })}>
             <SelectTrigger className="h-10"><SelectValue placeholder="Status" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="new">New</SelectItem>
@@ -607,7 +652,7 @@ function AddLeadForm({ onClose, onSubmit, currentUser, properties }: {
 
 function AssignTelecallerModal({ lead, telecallers, onClose, onAssign }: {
   lead: Lead;
-  telecallers: any[];
+  telecallers: Telecaller[];
   onClose: () => void;
   onAssign: (tcId: string, tcName: string) => Promise<void>;
 }) {
@@ -682,9 +727,10 @@ function AssignTelecallerModal({ lead, telecallers, onClose, onAssign }: {
 
 // ── Add Follow-up Modal ───────────────────────────────────────────────────────
 
-function AddFollowupModal({ lead, telecallers, currentUser, onClose, onSubmit }: {
+function AddFollowupModal({ lead, telecallers, history, currentUser, onClose, onSubmit }: {
   lead: Lead;
-  telecallers: any[];
+  telecallers: Telecaller[];
+  history: FollowUp[];
   currentUser: { id: string; full_name: string; role: string } | null;
   onClose: () => void;
   onSubmit: (data: Omit<FollowUp, "id" | "created_at" | "lead_id" | "lead_name">) => Promise<void>;
@@ -732,6 +778,45 @@ function AddFollowupModal({ lead, telecallers, currentUser, onClose, onSubmit }:
             Recording follow-up for <span className="font-semibold text-[#1e1b4b]">{lead.name}</span>
             <span className="ml-2 text-xs">({lead.phone})</span>
           </p>
+          {history.length > 0 && (
+            <div className="mb-4 rounded-xl border border-border bg-secondary/30 p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <MessageSquare className="w-4 h-4 text-[#6366f1]" />
+                <p className="text-sm font-semibold text-[#1e1b4b]">Previous call remarks</p>
+              </div>
+              <div className="space-y-2 max-h-44 overflow-y-auto pr-1">
+                {history.map((followup) => {
+                  const outcome = followupOutcomeLabel[followup.outcome];
+                  return (
+                    <div key={followup.id} className="rounded-lg bg-white border border-border p-2.5">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <div className="flex items-center gap-1.5">
+                          <Badge className="text-[10px] px-1.5 py-0.5" style={{ background: outcome.bg, color: outcome.color }}>
+                            {outcome.label}
+                          </Badge>
+                          {followup.telecaller_name && (
+                            <span className="text-[11px] text-muted-foreground">by {followup.telecaller_name}</span>
+                          )}
+                        </div>
+                        <span className="text-[11px] text-muted-foreground shrink-0">{followup.follow_up_date}</span>
+                      </div>
+                      <p className="text-xs text-[#1e1b4b] whitespace-pre-wrap">
+                        {followup.notes || "No remark added"}
+                      </p>
+                      {followup.next_followup_date && (
+                        <p className="text-[11px] text-[#6366f1] mt-1">Next follow-up: {followup.next_followup_date}</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          {history.length === 0 && (
+            <div className="mb-4 rounded-xl border border-dashed border-border bg-secondary/20 p-3 text-xs text-muted-foreground">
+              No previous call remark for this lead yet.
+            </div>
+          )}
           <form className="space-y-4" onSubmit={handleSubmit}>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
@@ -764,7 +849,7 @@ function AddFollowupModal({ lead, telecallers, currentUser, onClose, onSubmit }:
 
             <div className="space-y-1.5">
               <Label className="text-sm font-medium text-[#1e1b4b]">Call Outcome</Label>
-              <Select value={form.outcome} onValueChange={(v) => setForm((f) => ({ ...f, outcome: v as any }))}>
+              <Select value={form.outcome} onValueChange={(v) => setForm((f) => ({ ...f, outcome: v as FollowUp["outcome"] }))}>
                 <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {outcomeOptions.map((o) => (
@@ -806,7 +891,7 @@ function AddFollowupModal({ lead, telecallers, currentUser, onClose, onSubmit }:
 
 function BulkAssignModal({ count, telecallers, onClose, onAssign }: {
   count: number;
-  telecallers: any[];
+  telecallers: Telecaller[];
   onClose: () => void;
   onAssign: (tcId: string, tcName: string) => Promise<void>;
 }) {
