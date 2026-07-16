@@ -100,7 +100,7 @@ function SaleRow({ sale, onApprove, onReject }: {
                 <IndianRupee className="w-3.5 h-3.5 text-[#D4AF37]" />
                 Commission Breakdown — Sale Value: {formatINR(sale.sale_amount)}
               </p>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {[
                   { role: `${sale.associate_name || "Seller"} (L0 Seller)`, pct: 4, amount: sellerComm },
                   { role: "Referrer (L1 Upline)", pct: 1.5, amount: l1Comm },
@@ -150,7 +150,7 @@ export default function SalesPage() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <div className="flex-1 p-6 space-y-5 animate-fade-in">
+      <div className="flex-1 p-3 sm:p-6 space-y-5 animate-fade-in">
 
         {usingMockData && (
           <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm bg-amber-50 border border-amber-200 text-amber-700">
@@ -226,6 +226,7 @@ export default function SalesPage() {
 
           <TabsContent value="sales" className="mt-4">
             <Card className="border border-border shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-secondary/50">
@@ -253,6 +254,7 @@ export default function SalesPage() {
                   )}
                 </TableBody>
               </Table>
+              </div>
             </Card>
           </TabsContent>
 
@@ -286,6 +288,7 @@ function CommissionLedger({ sales }: { sales: SaleRecord[] }) {
       </div>
 
       <Card className="border border-border shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow className="bg-secondary/50">
@@ -333,6 +336,7 @@ function CommissionLedger({ sales }: { sales: SaleRecord[] }) {
             })}
           </TableBody>
         </Table>
+        </div>
       </Card>
     </div>
   );

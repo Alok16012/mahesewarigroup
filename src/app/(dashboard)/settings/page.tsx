@@ -46,11 +46,11 @@ export default function SettingsPage() {
     <div className="flex flex-col min-h-screen">
       
 
-      <div className="flex-1 p-6 animate-fade-in">
-        <Tabs defaultValue="commission" orientation="vertical" className="flex gap-6">
-          {/* Sidebar tabs */}
-          <div className="flex-shrink-0 w-52">
-            <TabsList className="flex flex-col items-start gap-1 bg-transparent p-0 h-auto">
+      <div className="flex-1 p-3 sm:p-6 animate-fade-in">
+        <Tabs defaultValue="commission" orientation="vertical" className="flex flex-col lg:flex-row gap-4 lg:gap-6">
+          {/* Sidebar tabs — horizontal scroll on mobile, vertical on desktop */}
+          <div className="w-full lg:w-52 lg:flex-shrink-0">
+            <TabsList className="flex flex-row lg:flex-col overflow-x-auto items-start gap-1 bg-transparent p-0 h-auto w-full pb-1 lg:pb-0">
               {[
                 { value: "commission", icon: Percent, label: "Commission Rules" },
                 { value: "company", icon: Building2, label: "Company Profile" },
@@ -62,8 +62,7 @@ export default function SettingsPage() {
                   <TabsTrigger
                     key={tab.value}
                     value={tab.value}
-                    className="w-full justify-start gap-2.5 px-3 py-2.5 text-sm font-medium text-left rounded-xl data-[state=active]:text-white data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-secondary data-[state=inactive]:hover:text-[#1e1b4b]"
-                    style={{}}
+                    className="whitespace-nowrap lg:w-full justify-start gap-2.5 px-3 py-2.5 text-sm font-medium text-left rounded-xl data-[state=active]:text-white data-[state=inactive]:text-muted-foreground data-[state=inactive]:hover:bg-secondary data-[state=inactive]:hover:text-[#1e1b4b]"
                   >
                     <Icon className="w-4 h-4 flex-shrink-0" />
                     {tab.label}
@@ -76,8 +75,8 @@ export default function SettingsPage() {
           <div className="flex-1 space-y-5">
             {/* Commission Rules */}
             <TabsContent value="commission" className="mt-0">
-              <Card className="p-6 border border-border shadow-sm">
-                <div className="flex items-start justify-between mb-2">
+              <Card className="p-4 sm:p-6 border border-border shadow-sm">
+                <div className="flex items-start justify-between mb-2 gap-3 flex-wrap">
                   <div>
                     <h2 className="text-lg font-bold text-[#1e1b4b]">Commission Configuration</h2>
                     <p className="text-sm text-muted-foreground mt-0.5">
@@ -121,56 +120,46 @@ export default function SettingsPage() {
 
                 {/* Level rows */}
                 <div className="space-y-3">
-                  <div className="grid grid-cols-12 gap-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide px-1">
-                    <span className="col-span-1">Level</span>
-                    <span className="col-span-5">Relation / Description</span>
-                    <span className="col-span-3">Percentage (%)</span>
-                    <span className="col-span-2">Amount (₹10L sale)</span>
-                    <span className="col-span-1"></span>
-                  </div>
-
                   {commLevels.map((level, i) => (
-                    <div key={i} className="grid grid-cols-12 gap-3 items-center p-3 rounded-xl border border-border hover:border-[#1e1b4b]/30 transition-colors bg-white">
-                      <div className="col-span-1">
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold"
+                    <div key={i} className="p-3 rounded-xl border border-border hover:border-[#1e1b4b]/30 transition-colors bg-white">
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 mt-0.5"
                           style={{ background: "#ede9fe", color: "#1e1b4b" }}>
                           {level.level}
                         </div>
-                      </div>
-                      <div className="col-span-5">
-                        <Input
-                          value={level.relation}
-                          onChange={(e) => {
-                            const updated = [...commLevels];
-                            updated[i].relation = e.target.value;
-                            setCommLevels(updated);
-                          }}
-                          className="h-9 text-sm border-0 bg-secondary focus:bg-white focus:border-[#1e1b4b]"
-                        />
-                      </div>
-                      <div className="col-span-3">
-                        <div className="relative">
+                        <div className="flex-1 min-w-0 space-y-2">
                           <Input
-                            type="number"
-                            step="0.1"
-                            min="0"
-                            max="6"
-                            value={level.pct}
-                            onChange={(e) => updatePct(i, e.target.value)}
-                            className="h-9 pr-8 text-sm font-semibold"
+                            value={level.relation}
+                            onChange={(e) => {
+                              const updated = [...commLevels];
+                              updated[i].relation = e.target.value;
+                              setCommLevels(updated);
+                            }}
+                            className="h-9 text-sm border-0 bg-secondary focus:bg-white focus:border-[#1e1b4b]"
                           />
-                          <Percent className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <div className="relative w-28">
+                              <Input
+                                type="number"
+                                step="0.1"
+                                min="0"
+                                max="6"
+                                value={level.pct}
+                                onChange={(e) => updatePct(i, e.target.value)}
+                                className="h-9 pr-8 text-sm font-semibold"
+                              />
+                              <Percent className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                            </div>
+                            <span className="text-xs text-muted-foreground">=</span>
+                            <span className="text-sm font-semibold text-[#1e1b4b]">
+                              ₹{(1000000 * level.pct / 100 * 10).toLocaleString("en-IN")}
+                            </span>
+                            <span className="text-xs text-muted-foreground ml-auto">on ₹10L sale</span>
+                          </div>
                         </div>
-                      </div>
-                      <div className="col-span-2">
-                        <span className="text-sm font-semibold text-[#1e1b4b]">
-                          ₹{(1000000 * level.pct / 100 * 10).toLocaleString("en-IN")}
-                        </span>
-                      </div>
-                      <div className="col-span-1 flex justify-end">
                         {i > 0 && (
                           <button onClick={() => removeLevel(i)}
-                            className="w-7 h-7 rounded-lg flex items-center justify-center text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors">
+                            className="w-7 h-7 rounded-lg flex items-center justify-center text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors shrink-0">
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         )}
@@ -179,26 +168,24 @@ export default function SettingsPage() {
                   ))}
 
                   {/* Company retention row */}
-                  <div className="grid grid-cols-12 gap-3 items-center p-3 rounded-xl border border-dashed border-border bg-secondary/30">
-                    <div className="col-span-1">
-                      <div className="w-8 h-8 rounded-full flex items-center justify-center">
+                  <div className="p-3 rounded-xl border border-dashed border-border bg-secondary/30">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0">
                         <Building2 className="w-4 h-4 text-muted-foreground" />
                       </div>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-sm text-muted-foreground italic">Company (Retained from 6% pool)</span>
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          <span className="text-sm font-semibold" style={{ color: remaining < 0 ? "#ef4444" : "#64748b" }}>
+                            {remaining.toFixed(1)}%
+                          </span>
+                          <span className="text-xs text-muted-foreground">=</span>
+                          <span className="text-sm font-semibold" style={{ color: remaining < 0 ? "#ef4444" : "#64748b" }}>
+                            ₹{Math.max(0, (1000000 * remaining / 100 * 10)).toLocaleString("en-IN")}
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="col-span-5">
-                      <span className="text-sm text-muted-foreground italic">Company (Retained from 6% pool)</span>
-                    </div>
-                    <div className="col-span-3">
-                      <span className="text-sm font-semibold" style={{ color: remaining < 0 ? "#ef4444" : "#64748b" }}>
-                        {remaining.toFixed(1)}%
-                      </span>
-                    </div>
-                    <div className="col-span-2">
-                      <span className="text-sm font-semibold" style={{ color: remaining < 0 ? "#ef4444" : "#64748b" }}>
-                        ₹{Math.max(0, (1000000 * remaining / 100 * 10)).toLocaleString("en-IN")}
-                      </span>
-                    </div>
-                    <div className="col-span-1" />
                   </div>
                 </div>
 

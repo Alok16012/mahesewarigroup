@@ -156,7 +156,7 @@ export default function LeadsPage() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <div className="flex-1 p-6 space-y-5 animate-fade-in">
+      <div className="flex-1 p-3 sm:p-6 space-y-5 animate-fade-in">
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
           {[
@@ -282,6 +282,7 @@ export default function LeadsPage() {
         {/* Leads table (Excel view) */}
         <div className="mt-4">
             <Card className="border border-border shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-secondary/50">
@@ -428,6 +429,7 @@ export default function LeadsPage() {
                   })}
                 </TableBody>
               </Table>
+              </div>
             </Card>
         </div>
       </div>

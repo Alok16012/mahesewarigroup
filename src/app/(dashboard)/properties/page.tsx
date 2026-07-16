@@ -357,6 +357,7 @@ export default function PropertiesPage() {
       {/* List View */}
       {view === "list" && (
         <Card className="border-0 shadow-sm rounded-2xl overflow-hidden bg-white">
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="bg-[#fcfcff] hover:bg-[#fcfcff] border-0">
@@ -412,6 +413,7 @@ export default function PropertiesPage() {
               })}
             </TableBody>
           </Table>
+          </div>
         </Card>
       )}
     </div>

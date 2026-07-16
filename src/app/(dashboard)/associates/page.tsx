@@ -825,34 +825,25 @@ export default function AssociatesPage() {
       </div>
 
       {/* Commission structure banner */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-indigo-100 shadow-sm">
-          <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center">
-            <Percent className="w-5 h-5 text-indigo-500" />
-          </div>
-          <div>
-            <p className="text-base font-bold text-[#1e1b4b]">6%</p>
-            <p className="text-xs text-muted-foreground">Total Commission</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-green-100 shadow-sm">
-          <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center">
-            <TrendingUp className="w-5 h-5 text-green-500" />
-          </div>
-          <div>
-            <p className="text-base font-bold text-[#1e1b4b]">4%</p>
-            <p className="text-xs text-muted-foreground">Direct Seller Earns</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-amber-100 shadow-sm">
-          <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center">
-            <Users className="w-5 h-5 text-amber-500" />
-          </div>
-          <div>
-            <p className="text-base font-bold text-[#1e1b4b]">2%</p>
-            <p className="text-xs text-muted-foreground">Sponsor Earns</p>
-          </div>
-        </div>
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
+        {[
+          { pct: "6%", label: "Total Commission", icon: Percent, iconColor: "text-indigo-500", bg: "bg-indigo-50", border: "border-indigo-100" },
+          { pct: "4%", label: "Direct Seller", icon: TrendingUp, iconColor: "text-green-500", bg: "bg-green-50", border: "border-green-100" },
+          { pct: "2%", label: "Sponsor Earns", icon: Users, iconColor: "text-amber-500", bg: "bg-amber-50", border: "border-amber-100" },
+        ].map((c) => {
+          const Icon = c.icon;
+          return (
+            <div key={c.pct} className={`flex flex-col sm:flex-row items-center sm:items-start gap-1 sm:gap-3 p-2 sm:p-3 bg-white rounded-xl border ${c.border} shadow-sm text-center sm:text-left`}>
+              <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl ${c.bg} flex items-center justify-center shrink-0`}>
+                <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${c.iconColor}`} />
+              </div>
+              <div>
+                <p className="text-base font-bold text-[#1e1b4b]">{c.pct}</p>
+                <p className="text-[10px] sm:text-xs text-muted-foreground leading-tight">{c.label}</p>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* Stats */}
@@ -954,15 +945,15 @@ export default function AssociatesPage() {
           </Card>
 
           {/* Commission flow illustration */}
-          <Card className="border border-border shadow-sm p-5 mt-4">
+          <Card className="border border-border shadow-sm p-4 sm:p-5 mt-4">
             <h4 className="font-semibold text-[#1e1b4b] mb-4 text-sm">Commission Flow Example</h4>
-            <div className="flex items-center gap-0 overflow-x-auto">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-0">
               {[
                 { name: "Amar Patel", role: "Makes a ₹10L sale", level: "L3", earn: "₹40,000 (4%)", bg: "#f0fdf4", color: "#22c55e", arrow: true },
                 { name: "Ram Singh", role: "Amar's Sponsor", level: "L2", earn: "₹20,000 (2%)", bg: "#fffbeb", color: "#f59e0b", arrow: false },
               ].map((node) => (
-                <div key={node.name} className="flex items-center gap-0 flex-shrink-0">
-                  <div className="p-4 rounded-xl border text-center min-w-[140px]"
+                <div key={node.name} className="flex sm:flex-col items-center gap-0">
+                  <div className="p-4 rounded-xl border flex-1 sm:flex-none text-center w-full sm:min-w-[140px]"
                     style={{ background: node.bg, borderColor: node.color + "40" }}>
                     <div className="w-9 h-9 rounded-full mx-auto flex items-center justify-center text-sm font-bold mb-2"
                       style={{ background: node.color + "20", color: node.color }}>
@@ -976,14 +967,19 @@ export default function AssociatesPage() {
                     </Badge>
                   </div>
                   {node.arrow && (
-                    <div className="flex items-center px-2 text-muted-foreground">
+                    <div className="flex sm:hidden items-center px-2 text-muted-foreground rotate-90 sm:rotate-0">
+                      <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                    </div>
+                  )}
+                  {node.arrow && (
+                    <div className="hidden sm:flex items-center px-2 text-muted-foreground">
                       <div className="w-8 h-px bg-border" />
                       <ChevronRight className="w-4 h-4 -ml-1" />
                     </div>
                   )}
                 </div>
               ))}
-              <div className="ml-4 p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-500 max-w-[160px]">
+              <div className="sm:ml-4 p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-500">
                 <p className="font-semibold text-[#1e1b4b] mb-1">Total: ₹60,000</p>
                 <p>4% + 2% = 6% of ₹10L</p>
                 <p className="mt-1 text-orange-500 flex items-center gap-1">
@@ -1020,6 +1016,7 @@ export default function AssociatesPage() {
           </div>
 
           <Card className="border border-border shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="bg-secondary/50">
@@ -1167,6 +1164,7 @@ export default function AssociatesPage() {
                 })}
               </TableBody>
             </Table>
+            </div>
           </Card>
         </TabsContent>
       </Tabs>
