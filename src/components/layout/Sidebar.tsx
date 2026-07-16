@@ -39,14 +39,23 @@ const roleLabel: Record<string, string> = {
 };
 
 function MGLogo({ size = "sm" }: { size?: "sm" | "md" }) {
-  const cls = size === "md" ? "w-10 h-10 text-sm rounded-xl" : "w-8 h-8 text-xs rounded-lg";
+  const dim = size === "md" ? 40 : 32;
   return (
-    <div
-      className={`${cls} flex items-center justify-center font-black shrink-0`}
-      style={{ background: "linear-gradient(135deg, #D4AF37, #f0d060)", color: "#1a2b4a" }}
-    >
-      MG
-    </div>
+    <svg width={dim} height={dim} viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="shrink-0">
+      <rect width="40" height="40" rx="10" fill="url(#mgGrad)" />
+      {/* Crown top */}
+      <path d="M8 16 L13 10 L20 15 L27 10 L32 16 L30 24 H10 Z" fill="#1a2b4a" opacity="0.9" />
+      {/* M shape */}
+      <path d="M11 26 L11 20 L16 24 L20 20 L24 24 L29 20 L29 26 Z" fill="#1a2b4a" />
+      {/* Base bar */}
+      <rect x="11" y="27" width="18" height="2.5" rx="1.25" fill="#1a2b4a" opacity="0.7" />
+      <defs>
+        <linearGradient id="mgGrad" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#f0d060" />
+          <stop offset="100%" stopColor="#D4AF37" />
+        </linearGradient>
+      </defs>
+    </svg>
   );
 }
 

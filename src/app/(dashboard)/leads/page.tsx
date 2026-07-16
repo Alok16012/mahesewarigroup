@@ -157,19 +157,20 @@ export default function LeadsPage() {
   return (
     <div className="flex flex-col min-h-screen">
       <div className="flex-1 p-3 sm:p-6 space-y-5 animate-fade-in">
-        {/* Stats — horizontal scroll on mobile */}
-        <div className="flex gap-3 overflow-x-auto pb-1 lg:grid lg:grid-cols-5 lg:overflow-visible">
+        {/* Stats — 3+2 grid on mobile (like designer mockup), 5 cols on desktop */}
+        <div className="grid grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
           {[
-            { label: "Total Leads", value: totalLeads, color: "#6366f1", line: "#6366f1", icon: "🎯" },
-            { label: "New",         value: visibleLeads.filter((l) => l.status === "new").length, color: "#22c55e", line: "#22c55e", icon: "✨" },
-            { label: "In Progress", value: visibleLeads.filter((l) => ["contacted","site_visit","negotiation"].includes(l.status)).length, color: "#f59e0b", line: "#f59e0b", icon: "🔄" },
-            { label: "Converted",   value: converted,  color: "#22c55e", line: "#22c55e", icon: "✅" },
-            { label: "Due Today",   value: dueToday,   color: "#dc2626", line: "#dc2626", icon: "📅" },
-          ].map((s) => (
-            <Card key={s.label} className="flex-shrink-0 w-28 lg:w-auto p-3 border-0 shadow-sm rounded-2xl bg-white text-center relative overflow-hidden">
+            { label: "Total Leads", value: totalLeads, color: "#6366f1", line: "#6366f1" },
+            { label: "New",         value: visibleLeads.filter((l) => l.status === "new").length, color: "#22c55e", line: "#22c55e" },
+            { label: "In Progress", value: visibleLeads.filter((l) => ["contacted","site_visit","negotiation"].includes(l.status)).length, color: "#f59e0b", line: "#f59e0b" },
+            { label: "Converted",   value: converted,  color: "#22c55e", line: "#22c55e" },
+            { label: "Due Today",   value: dueToday,   color: "#dc2626", line: "#dc2626" },
+          ].map((s, i) => (
+            <Card key={s.label}
+              className={`p-3 border-0 shadow-sm rounded-2xl bg-white text-center relative overflow-hidden ${i >= 3 ? "col-start-auto" : ""}`}>
               <p className="text-xl font-bold mb-0.5" style={{ color: s.color }}>{s.value}</p>
               <p className="text-[11px] text-gray-500 leading-tight">{s.label}</p>
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full" style={{ background: s.line }} />
+              <div className="absolute bottom-0 left-0 right-0 h-1 rounded-b-2xl" style={{ background: s.line }} />
             </Card>
           ))}
         </div>
@@ -391,7 +392,7 @@ export default function LeadsPage() {
                           )}
                         </TableCell>
                         <TableCell>
-                          <div className="flex gap-1">
+                          <div className="flex items-center gap-1.5">
                             <Select onValueChange={(v) => updateLeadStatus(lead.id, v as LeadStatus)}>
                               <SelectTrigger className="h-7 text-xs w-24 border-[#1e1b4b]/30">
                                 <SelectValue placeholder="Move to" />
@@ -403,25 +404,33 @@ export default function LeadsPage() {
                               </SelectContent>
                             </Select>
                             {user?.role === "admin" && (
-                              <Button variant="outline" size="sm" className="h-7 w-7 p-0 text-[#6366f1]"
+                              <button
                                 title="Assign Telecaller"
-                                onClick={() => setAssignLead(lead)}>
-                                <Headphones className="w-3 h-3" />
-                              </Button>
+                                onClick={() => setAssignLead(lead)}
+                                className="w-8 h-8 rounded-full flex items-center justify-center transition-opacity hover:opacity-80"
+                                style={{ background: "#dbeafe" }}>
+                                <Headphones className="w-3.5 h-3.5" style={{ color: "#2563eb" }} />
+                              </button>
                             )}
                             {(user?.role === "admin" || user?.role === "telecaller") && (
-                              <Button variant="outline" size="sm" className="h-7 w-7 p-0 text-[#16a34a]"
+                              <button
                                 title={leadFollowups.length > 0 ? "View/Add Follow-up" : "Add Follow-up"}
-                                onClick={() => setFollowupLead(lead)}>
-                                {leadFollowups.length > 0 ? <MessageSquare className="w-3 h-3" /> : <Calendar className="w-3 h-3" />}
-                              </Button>
+                                onClick={() => setFollowupLead(lead)}
+                                className="w-8 h-8 rounded-full flex items-center justify-center transition-opacity hover:opacity-80"
+                                style={{ background: "#dcfce7" }}>
+                                {leadFollowups.length > 0
+                                  ? <MessageSquare className="w-3.5 h-3.5" style={{ color: "#16a34a" }} />
+                                  : <Calendar className="w-3.5 h-3.5" style={{ color: "#16a34a" }} />}
+                              </button>
                             )}
                             {user?.role === "admin" && (
-                              <Button variant="outline" size="sm" className="h-7 w-7 p-0 text-red-600"
+                              <button
                                 title="Delete Lead"
-                                onClick={() => setDeleteTarget(lead)}>
-                                <Trash2 className="w-3 h-3" />
-                              </Button>
+                                onClick={() => setDeleteTarget(lead)}
+                                className="w-8 h-8 rounded-full flex items-center justify-center transition-opacity hover:opacity-80"
+                                style={{ background: "#fee2e2" }}>
+                                <Trash2 className="w-3.5 h-3.5" style={{ color: "#dc2626" }} />
+                              </button>
                             )}
                           </div>
                         </TableCell>
