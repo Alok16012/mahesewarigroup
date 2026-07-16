@@ -245,20 +245,18 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Stat Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+      {/* Stat Cards — 2x2 on mobile, 5 cols on desktop */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         {statCards.map((card) => {
           const Icon = card.icon;
           return (
-            <Card key={card.title} className="p-4 bg-white border-0 shadow-sm rounded-2xl hover:shadow-md transition-all duration-200 cursor-pointer group">
-              <div className="flex items-start justify-between mb-4">
-                <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{ background: card.bg }}>
-                  <Icon className="w-5 h-5" style={{ color: card.color }} />
-                </div>
+            <Card key={card.title} className="p-4 bg-white border-0 shadow-sm rounded-2xl hover:shadow-md transition-all duration-200">
+              <div className="w-11 h-11 rounded-2xl flex items-center justify-center mb-3" style={{ background: card.bg }}>
+                <Icon className="w-5 h-5" style={{ color: card.color }} />
               </div>
               <p className="text-2xl font-bold text-[#1e1b4b] mb-0.5">{card.value}</p>
-              <p className="text-xs font-medium text-gray-500">{card.title}</p>
-              <p className="text-xs text-gray-400 mt-1">{card.sub}</p>
+              <p className="text-xs font-semibold text-gray-600">{card.title}</p>
+              <p className="text-xs font-medium mt-1" style={{ color: card.color }}>{card.sub}</p>
             </Card>
           );
         })}
