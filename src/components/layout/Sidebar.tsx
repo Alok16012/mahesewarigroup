@@ -1,25 +1,26 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, Building2, Users, TrendingUp,
   Target, LogOut, Home, ChevronRight,
-  MapPin, Settings, Headphones,
+  MapPin, Settings, Headphones, Menu, X,
 } from "lucide-react";
 import { useCurrentUser } from "@/hooks/use-auth";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { toast } from "sonner";
 
 const navItems = [
-  { href: "/dashboard",   icon: LayoutDashboard, label: "Dashboard",           adminOnly: false, telecallerHidden: false },
-  { href: "/properties",  icon: Building2,       label: "Plot Inventory",      adminOnly: false, telecallerHidden: false },
-  { href: "/leads",       icon: Target,          label: "My Leads",            adminOnly: false, telecallerHidden: false },
-  { href: "/telecallers", icon: Headphones,      label: "Telecallers",         adminOnly: true,  telecallerHidden: true  },
-  { href: "/marketing-managers", icon: Users,    label: "Marketing Managers",  adminOnly: true,  telecallerHidden: true  },
-  { href: "/associates",  icon: Users,           label: "Associate Network",   adminOnly: false, telecallerHidden: true  },
-  { href: "/sales",       icon: TrendingUp,      label: "Sales & Commissions", adminOnly: false, telecallerHidden: true  },
-  { href: "/settings",    icon: Settings,        label: "Settings",            adminOnly: true,  telecallerHidden: true  },
+  { href: "/dashboard",          icon: LayoutDashboard, label: "Dashboard",           adminOnly: false, telecallerHidden: false },
+  { href: "/properties",         icon: Building2,       label: "Plot Inventory",      adminOnly: false, telecallerHidden: false },
+  { href: "/leads",              icon: Target,          label: "My Leads",            adminOnly: false, telecallerHidden: false },
+  { href: "/telecallers",        icon: Headphones,      label: "Telecallers",         adminOnly: true,  telecallerHidden: true  },
+  { href: "/marketing-managers", icon: Users,           label: "Marketing Managers",  adminOnly: true,  telecallerHidden: true  },
+  { href: "/associates",         icon: Users,           label: "Associate Network",   adminOnly: false, telecallerHidden: true  },
+  { href: "/sales",              icon: TrendingUp,      label: "Sales & Commissions", adminOnly: false, telecallerHidden: true  },
+  { href: "/settings",           icon: Settings,        label: "Settings",            adminOnly: true,  telecallerHidden: true  },
 ];
 
 const roleLabel: Record<string, string> = {
@@ -34,11 +35,10 @@ export default function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useCurrentUser();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const handleLogout = async () => {
-    if (isSupabaseConfigured()) {
-      await supabase.auth.signOut();
-    }
+    if (isSupabaseConfigured()) await supabase.auth.signOut();
     if (typeof window !== "undefined") {
       localStorage.removeItem("dummy_role");
       localStorage.removeItem("dummy_telecaller");
@@ -49,33 +49,47 @@ export default function Sidebar() {
   };
 
   const initials = user?.full_name
-    ?.split(" ")
-    .map((n) => n[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase() || "U";
+    ?.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase() || "U";
 
-  return (
+  const visibleItems = navItems.filter((item) => {
+    if (user?.role === "telecaller") return !item.telecallerHidden;
+    if (user?.role === "marketing-manager") return item.href === "/properties" || item.href === "/leads";
+    if (item.adminOnly) return user?.role === "admin";
+    return true;
+  });
+
+  const SidebarContent = () => (
     <aside
-      className="fixed left-0 top-0 h-screen w-[260px] flex flex-col z-50 shadow-xl"
+      className={`
+        fixed left-0 top-0 h-screen w-[260px] flex flex-col z-50 shadow-2xl
+        transition-transform duration-300 ease-in-out
+        ${mobileOpen ? "translate-x-0" : "-translate-x-full"}
+        lg:translate-x-0
+      `}
       style={{ background: "linear-gradient(160deg, #1a2b4a 0%, #0f1e36 100%)" }}
     >
-      {/* Logo */}
-      <div className="px-6 py-5 border-b border-white/10">
+      {/* Logo + mobile close */}
+      <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
             style={{ background: "linear-gradient(135deg, #D4AF37, #f0d060)" }}>
-            <Home className="w-5 h-5 text-[#1a2b4a]" />
+            <Home className="w-4.5 h-4.5 text-[#1a2b4a]" />
           </div>
           <div>
             <p className="text-white font-bold text-sm leading-tight">Maheshwari Group</p>
             <p className="text-white/40 text-xs">Real Estate Platform</p>
           </div>
         </div>
+        <button
+          onClick={() => setMobileOpen(false)}
+          className="lg:hidden text-white/50 hover:text-white p-1"
+        >
+          <X className="w-5 h-5" />
+        </button>
       </div>
 
       {/* User info */}
-      <div className="px-4 py-4 border-b border-white/10">
+      <div className="px-4 py-3 border-b border-white/10">
         <div className="flex items-center gap-3 px-2 py-2.5 rounded-xl bg-white/8">
           <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
             style={{ background: "linear-gradient(135deg, #D4AF37, #f0d060)", color: "#1a2b4a" }}>
@@ -100,18 +114,14 @@ export default function Sidebar() {
           Navigation
         </p>
         <ul className="space-y-0.5">
-          {navItems.filter((item) => {
-            if (user?.role === "telecaller") return !item.telecallerHidden;
-            if (user?.role === "marketing-manager") return item.href === "/properties" || item.href === "/leads";
-            if (item.adminOnly) return user?.role === "admin";
-            return true;
-          }).map((item) => {
+          {visibleItems.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
             const Icon = item.icon;
             return (
               <li key={item.href}>
                 <Link
                   href={item.href}
+                  onClick={() => setMobileOpen(false)}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 group ${
                     isActive ? "text-[#1a2b4a]" : "text-white/60 hover:text-white hover:bg-white/8"
                   }`}
@@ -138,5 +148,46 @@ export default function Sidebar() {
         </button>
       </div>
     </aside>
+  );
+
+  return (
+    <>
+      {/* Mobile top bar */}
+      <div
+        className="lg:hidden fixed top-0 left-0 right-0 z-40 flex items-center gap-3 px-4 py-3 shadow-md"
+        style={{ background: "linear-gradient(160deg, #1a2b4a 0%, #0f1e36 100%)" }}
+      >
+        <button
+          onClick={() => setMobileOpen(true)}
+          className="text-white/70 hover:text-white p-1"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center"
+            style={{ background: "linear-gradient(135deg, #D4AF37, #f0d060)" }}>
+            <Home className="w-3.5 h-3.5 text-[#1a2b4a]" />
+          </div>
+          <p className="text-white font-bold text-sm">Maheshwari Group</p>
+        </div>
+        <div className="ml-auto">
+          <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
+            style={{ background: "linear-gradient(135deg, #D4AF37, #f0d060)", color: "#1a2b4a" }}>
+            {initials}
+          </div>
+        </div>
+      </div>
+
+      {/* Backdrop */}
+      {mobileOpen && (
+        <div
+          className="lg:hidden fixed inset-0 bg-black/60 z-40 backdrop-blur-sm"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <SidebarContent />
+    </>
   );
 }
