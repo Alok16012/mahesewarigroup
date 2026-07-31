@@ -36,7 +36,7 @@ export default function DashboardPage() {
     );
   }
 
-  if (user?.role === "telecaller") {
+  if (user?.role === "telecaller" || user?.role === "marketing-manager") {
     const allPlots = properties.flatMap((property) => property.plot_units || []);
     const ownLeads = leads.filter((lead) => lead.telecaller_id === user.id);
     const plotCounts = {

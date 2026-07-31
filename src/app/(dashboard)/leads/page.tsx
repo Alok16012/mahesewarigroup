@@ -412,7 +412,7 @@ export default function LeadsPage() {
                                 <Headphones className="w-3.5 h-3.5" style={{ color: "#2563eb" }} />
                               </button>
                             )}
-                            {(user?.role === "admin" || user?.role === "telecaller") && (
+                            {(user?.role === "admin" || user?.role === "telecaller" || user?.role === "marketing-manager") && (
                               <button
                                 title={leadFollowups.length > 0 ? "View/Add Follow-up" : "Add Follow-up"}
                                 onClick={() => setFollowupLead(lead)}
@@ -747,7 +747,7 @@ function AddFollowupModal({ lead, telecallers, history, currentUser, onClose, on
   onClose: () => void;
   onSubmit: (data: Omit<FollowUp, "id" | "created_at" | "lead_id" | "lead_name">) => Promise<void>;
 }) {
-  const isTelecaller = currentUser?.role === "telecaller";
+  const isTelecaller = currentUser?.role === "telecaller" || currentUser?.role === "marketing-manager";
   const [form, setForm] = useState({
     telecaller_id: isTelecaller ? currentUser!.id : (lead.telecaller_id || ""),
     telecaller_name: isTelecaller ? currentUser!.full_name : (lead.telecaller_name || ""),
