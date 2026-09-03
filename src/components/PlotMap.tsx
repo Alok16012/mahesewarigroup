@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { toast } from "sonner";
-import { IndianRupee, User, RefreshCw } from "lucide-react";
+import { IndianRupee, User, RefreshCw, Trash2 } from "lucide-react";
 
 async function dbMutate(op: "insert" | "update" | "delete", table: string, data?: Record<string, unknown>, id?: string) {
   const res = await fetch("/api/db", {
@@ -103,6 +103,7 @@ export default function PlotMap({
 }: PlotMapProps) {
   const [localPlots, setLocalPlots] = useState<PlotUnit[]>(plots);
   const [selected, setSelected] = useState<PlotUnit | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<PlotUnit | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -191,6 +192,29 @@ export default function PlotMap({
     setAddOpen(false);
   };
 
+  const deletePlot = async (plot: PlotUnit) => {
+    setSaving(true);
+    const previousPlots = localPlots;
+    const newPlots = localPlots.filter((p) => p.id !== plot.id);
+    setLocalPlots(newPlots);
+    onUpdate?.(newPlots);
+
+    if (isSupabaseConfigured()) {
+      try {
+        await dbMutate("delete", "plot_units", undefined, plot.id);
+        toast.success(`Plot ${plot.unit_number} deleted`);
+      } catch (error) {
+        setLocalPlots(previousPlots);
+        onUpdate?.(previousPlots);
+        toast.error((error as Error).message || "Failed to delete plot");
+      }
+    } else {
+      toast.success(`Plot ${plot.unit_number} deleted (Demo)`);
+    }
+    setSaving(false);
+    setDeleteTarget(null);
+  };
+
   return (
     <div className="space-y-4">
       {/* Legend + Stats */}
@@ -262,6 +286,7 @@ export default function PlotMap({
               <PlotDetail
                 plot={selected}
                 onSave={updatePlotStatus}
+                onDelete={(plot) => { setSelected(null); setDeleteTarget(plot); }}
                 saving={saving}
                 onClose={() => setSelected(null)}
                 bookingMode={bookingMode}
@@ -283,13 +308,49 @@ export default function PlotMap({
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Delete plot confirmation */}
+      <Dialog open={!!deleteTarget} onOpenChange={() => !saving && setDeleteTarget(null)}>
+        <DialogContent size="sm">
+          <DialogHeader>
+            <DialogTitle>Delete Plot {deleteTarget?.unit_number}?</DialogTitle>
+          </DialogHeader>
+          <div className="px-6 py-4">
+            <p className="text-sm text-gray-500">
+              This will permanently remove plot {deleteTarget?.unit_number} from the map. This action cannot be undone.
+            </p>
+            {deleteTarget && deleteTarget.status !== "available" && (
+              <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
+                Warning: this plot is currently {deleteTarget.status}. Its booking details will be lost.
+              </p>
+            )}
+            <div className="flex gap-3 mt-5">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                disabled={saving}
+                className="flex-1 h-10 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => deleteTarget && deletePlot(deleteTarget)}
+                disabled={saving}
+                className="flex-1 h-10 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-semibold transition-colors disabled:opacity-50"
+              >
+                {saving ? "Deleting…" : "Delete"}
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-function PlotDetail({ plot, onSave, saving, onClose, bookingMode = false, currentUserName }: {
+function PlotDetail({ plot, onSave, onDelete, saving, onClose, bookingMode = false, currentUserName }: {
   plot: PlotUnit;
   onSave: (plot: PlotUnit, status: PlotUnit["status"], details: PlotDealDetails) => void;
+  onDelete: (plot: PlotUnit) => void;
   saving: boolean;
   onClose: () => void;
   bookingMode?: boolean;
@@ -411,6 +472,16 @@ function PlotDetail({ plot, onSave, saving, onClose, bookingMode = false, curren
           </Button>
         )}
       </div>
+
+      {canManage && (
+        <button
+          onClick={() => onDelete(plot)}
+          disabled={saving}
+          className="w-full h-10 rounded-xl border border-red-200 text-sm font-semibold text-red-600 hover:bg-red-50 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+        >
+          <Trash2 className="w-4 h-4" /> Delete Plot
+        </button>
+      )}
     </div>
   );
 }
