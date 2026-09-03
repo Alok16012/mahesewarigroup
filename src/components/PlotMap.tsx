@@ -415,6 +415,11 @@ function PlotDetail({ plot, onSave, saving, onClose, bookingMode = false, curren
   );
 }
 
+const FACING_OPTIONS = [
+  "North", "South", "East", "West",
+  "North-East", "North-West", "South-East", "South-West",
+];
+
 function AddPlotForm({ onSave, saving, onClose }: {
   onSave: (data: Partial<PlotUnit>) => void;
   saving: boolean;
@@ -440,7 +445,7 @@ function AddPlotForm({ onSave, saving, onClose }: {
           <Select onValueChange={(v: string | null) => setData({ ...data, facing: v ?? "" })}>
             <SelectTrigger className="h-10"><SelectValue placeholder="Direction" /></SelectTrigger>
             <SelectContent>
-              {["North", "South", "East", "West", "North-East", "North-West"].map((d) => (
+              {FACING_OPTIONS.map((d) => (
                 <SelectItem key={d} value={d}>{d}</SelectItem>
               ))}
             </SelectContent>
